@@ -24,7 +24,7 @@ final class PostmanExporter extends AbstractExporter
     {
         return [
             '_postman_id' => Uuid::uuid4()->toString(),
-            'name' => $this->config->get('api-postman.name'),
+            'name' => $this->config->get('cartographer.name'),
             'description' => $this->config->get('app.description'),
             'schema' => 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
             'version' => [
@@ -40,7 +40,7 @@ final class PostmanExporter extends AbstractExporter
         $variables = [
             [
                 'key' => 'base_url',
-                'value' => $this->config->get('api-postman.base_url'),
+                'value' => $this->config->get('cartographer.base_url'),
                 'type' => 'string',
                 'enabled' => true,
             ],
@@ -103,7 +103,7 @@ final class PostmanExporter extends AbstractExporter
 
     protected function processRequests(): array
     {
-        return $this->config->get('api-postman.structured')
+        return $this->config->get('cartographer.structured')
             ? $this->processStructuredRequests()
             : $this->processFlatRequests();
     }
@@ -186,7 +186,7 @@ final class PostmanExporter extends AbstractExporter
 
         // Add protocol if missing
         if (!isset($url['protocol'])) {
-            $url['protocol'] = parse_url($this->config->get('api-postman.base_url'), PHP_URL_SCHEME) ?? 'http';
+            $url['protocol'] = parse_url($this->config->get('cartographer.base_url'), PHP_URL_SCHEME) ?? 'http';
         }
 
         return $url;
@@ -232,7 +232,7 @@ final class PostmanExporter extends AbstractExporter
     protected function getProtocolProfileBehavior(): array
     {
         return array_filter([
-            'disableBodyPruning' => $this->config->get('api-postman.protocol_profile_behavior.disable_body_pruning', false),
+            'disableBodyPruning' => $this->config->get('cartographer.protocol_profile_behavior.disable_body_pruning', false),
             'followRedirects' => true,
             'strictSSL' => true,
         ]);

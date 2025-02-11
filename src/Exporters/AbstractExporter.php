@@ -52,7 +52,7 @@ abstract class AbstractExporter implements Exporter
 
     protected function getScript(string $type): ?string
     {
-        $scriptConfig = $this->config->get(sprintf('api-postman.scripts.%s', $type));
+        $scriptConfig = $this->config->get(sprintf('cartographer.scripts.%s', $type));
 
         if (!empty($scriptConfig['content'])) {
             return $scriptConfig['content'];

@@ -117,7 +117,7 @@ return [
     | 'raw', 'urlencoded', 'formdata', 'file', 'graphql', 'none'
     |
     */
-    'body_mode' => env('COLLECTION_BODY_MODE', 'raw'),
+    'body_mode' => env('CARTOGRAPHER_COLLECTION_BODY_MODE', 'raw'),
 
     /*
     |--------------------------------------------------------------------------
@@ -216,8 +216,8 @@ return [
     */
 
     'authentication' => [
-        'method' => env('POSTMAN_EXPORT_AUTH_METHOD'),
-        'token' => env('POSTMAN_EXPORT_AUTH_TOKEN'),
+        'method' => env('CARTOGRAPHER_EXPORT_AUTH_METHOD'),
+        'token' => env('CARTOGRAPHER_EXPORT_AUTH_TOKEN'),
     ],
 
     /*

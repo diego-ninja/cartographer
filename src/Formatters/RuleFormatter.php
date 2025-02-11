@@ -16,7 +16,7 @@ final readonly class RuleFormatter
 
     public function format(string $attribute, array|Rule $rules): string
     {
-        if ( ! $this->config->get('api-postman.rules_to_human_readable')) {
+        if ( ! $this->config->get('cartographer.rules_to_human_readable')) {
             foreach ($rules as $i => $rule) {
                 if (is_subclass_of($rule, ValidationRule::class)) {
                     unset($rules[$i]);

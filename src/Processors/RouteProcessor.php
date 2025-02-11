@@ -109,7 +109,7 @@ final class RouteProcessor
         }
 
         $reflectionMethod = $this->getReflectionMethod($route->getAction());
-        if (!$reflectionMethod || !$this->config->get('api-postman.enable_formdata')) {
+        if (!$reflectionMethod || !$this->config->get('cartographer.enable_formdata')) {
             return null;
         }
 
@@ -120,8 +120,8 @@ final class RouteProcessor
 
         return Body::fromParameters(
             parameters: $formParameters,
-            formdata: $this->config->get('api-postman.formdata', []),
-            mode: BodyMode::from($this->config->get('api-postman.body_mode', BodyMode::Raw->value)),
+            formdata: $this->config->get('cartographer.formdata', []),
+            mode: BodyMode::from($this->config->get('cartographer.body_mode', BodyMode::Raw->value)),
         );
 
     }
@@ -131,7 +131,7 @@ final class RouteProcessor
      */
     protected function getDescription(Route $route): string
     {
-        if (!$this->config->get('api-postman.include_doc_comments')) {
+        if (!$this->config->get('cartographer.include_doc_comments')) {
             return '';
         }
 
@@ -146,7 +146,7 @@ final class RouteProcessor
     protected function shouldProcessRoute(array $middlewares): bool
     {
         foreach ($middlewares as $middleware) {
-            if (in_array($middleware, $this->config->get('api-postman.include_middleware'))) {
+            if (in_array($middleware, $this->config->get('cartographer.include_middleware'))) {
                 return true;
             }
         }
@@ -163,18 +163,18 @@ final class RouteProcessor
             ->fromRoute($route)
             ->fromAttribute($request)
             ->when(
-                $this->config->get('api-postman.enable_formdata') && Method::GET->value === $route->methods()[0],
+                $this->config->get('cartographer.enable_formdata') && Method::GET->value === $route->methods()[0],
                 fn(ParameterCollection $collection) => $collection->fromFormRequest(
                     $this->getReflectionMethod($route->getAction()),
-                    $this->config->get('api-postman.formdata', [])
+                    $this->config->get('cartographer.formdata', [])
                 )
             );
     }
 
     protected function getAuthenticationInfo(array $middlewares): ?array
     {
-        if (in_array($this->config->get('api-postman.auth_middleware'), $middlewares)) {
-            $config = $this->config->get('api-postman.authentication');
+        if (in_array($this->config->get('cartographer.auth_middleware'), $middlewares)) {
+            $config = $this->config->get('cartographer.authentication');
             return [
                 'type' => $config['method'],
                 'token' => $config['token'] ?? '{{token}}',
@@ -237,7 +237,7 @@ final class RouteProcessor
 
     protected function getHeaders(?RequestAttribute $request = null): HeaderCollection
     {
-        $configHeaders = $this->config->get('api-postman.headers', []);
+        $configHeaders = $this->config->get('cartographer.headers', []);
 
         if (empty($request?->headers)) {
             return HeaderCollection::from($configHeaders);

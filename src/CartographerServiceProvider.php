@@ -8,7 +8,7 @@ use Ninja\Cartographer\Exporters\PostmanExporter;
 use Ninja\Cartographer\Processors\RouteProcessor;
 use Illuminate\Support\ServiceProvider;
 
-class CollectionGeneratorServiceProvider extends ServiceProvider
+class CartographerServiceProvider extends ServiceProvider
 {
     /**
      * Bootstrap any package services.
@@ -19,8 +19,8 @@ class CollectionGeneratorServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__ . '/../config/api-postman.php' => config_path('api-postman.php'),
-            ], 'postman-config');
+                __DIR__ . '/../config/cartographer.php' => config_path('cartographer.php'),
+            ], 'cartographer-config');
         }
 
         $this->commands(ExportCollectionCommand::class);
@@ -34,8 +34,8 @@ class CollectionGeneratorServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../config/api-postman.php',
-            'api-postman',
+            __DIR__ . '/../config/cartographer.php',
+            'cartographer',
         );
 
         $this->app->bind(PostmanExporter::class, fn($app) => new PostmanExporter(

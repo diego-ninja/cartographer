@@ -20,7 +20,7 @@ final class InsomniaExporter extends AbstractExporter
             '_type' => 'export',
             '__export_format' => 4,
             '__export_date' => date('Y-m-d H:i:s'),
-            '__export_source' => 'laravel-api-to-insomnia',
+            '__export_source' => 'cartographer',
             'resources' => $this->generateResources(),
         ];
     }
@@ -39,7 +39,7 @@ final class InsomniaExporter extends AbstractExporter
             '_id' => $this->workspaceId,
             '_type' => 'workspace',
             'parentId' => null,
-            'name' => $this->config->get('api-postman.name'),
+            'name' => $this->config->get('cartographer.name'),
             'description' => $this->config->get('app.description'),
             'scope' => 'collection',
             'created' => now()->getTimestamp(),
@@ -55,7 +55,7 @@ final class InsomniaExporter extends AbstractExporter
             'parentId' => $this->workspaceId,
             'name' => 'Base Environment',
             'data' => [
-                'base_url' => $this->config->get('api-postman.base_url')
+                'base_url' => $this->config->get('cartographer.base_url')
             ]
         ];
 
@@ -68,7 +68,7 @@ final class InsomniaExporter extends AbstractExporter
 
     protected function processRequests(): array
     {
-        return $this->config->get('api-postman.structured')
+        return $this->config->get('cartographer.structured')
             ? $this->processStructuredRequests()
             : $this->processFlatRequests();
     }

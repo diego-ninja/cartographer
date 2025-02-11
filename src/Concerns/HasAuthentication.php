@@ -12,7 +12,7 @@ trait HasAuthentication
     public function resolveAuth(): self
     {
         //$config = $this->config['authentication'];
-        $config = $this->config->get('api-postman.authentication');
+        $config = $this->config->get('cartographer.authentication');
 
         if ($config['method']) {
             $className = Str::of('AndreasElia\\PostmanGenerator\\Authentication\\')
