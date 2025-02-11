@@ -61,14 +61,21 @@ class CartographerServiceProvider extends ServiceProvider
             );
         });
 
-        $this->app->bind(PostmanExporter::class, fn($app) => new PostmanExporter(
-            $app['config'],
-            $app->make(RouteProcessor::class),
-        ));
+        // Register Exporters
+        $this->app->bind(PostmanExporter::class, function($app) {
+            return new PostmanExporter(
+                $app['config'],
+                $app->make(RouteProcessor::class),
+                $app->make(AuthenticationProcessor::class)
+            );
+        });
 
-        $this->app->bind(InsomniaExporter::class, fn($app) => new InsomniaExporter(
-            $app['config'],
-            $app->make(RouteProcessor::class),
-        ));
+        $this->app->bind(InsomniaExporter::class, function($app) {
+            return new InsomniaExporter(
+                $app['config'],
+                $app->make(RouteProcessor::class),
+                $app->make(AuthenticationProcessor::class)
+            );
+        });
     }
 }

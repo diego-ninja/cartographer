@@ -2,6 +2,7 @@
 
 namespace Ninja\Cartographer\Exporters;
 
+use Ninja\Cartographer\Authentication\Strategy\AuthStrategyFactory;
 use Ninja\Cartographer\DTO\Request;
 use Ramsey\Uuid\Uuid;
 
@@ -46,10 +47,10 @@ final class PostmanExporter extends AbstractExporter
             ],
         ];
 
-        if ($this->authentication) {
+        if ($this->authProcessor->getStrategy()) {
             $variables[] = [
                 'key' => 'token',
-                'value' => $this->authentication->getToken(),
+                'value' => $this->authProcessor->getStrategy()->getToken(),
                 'type' => 'string',
                 'enabled' => true,
             ];
@@ -60,20 +61,7 @@ final class PostmanExporter extends AbstractExporter
 
     protected function generateAuth(): ?array
     {
-        if (!$this->authentication) {
-            return null;
-        }
-
-        return [
-            'type' => $this->authentication->getType(),
-            $this->authentication->getType() => [
-                [
-                    'key' => 'token',
-                    'value' => '{{token}}',
-                    'type' => 'string',
-                ],
-            ],
-        ];
+        return $this->authProcessor->getStrategy()?->toPostmanFormat();
     }
 
     protected function generateEvents(): array
@@ -100,13 +88,13 @@ final class PostmanExporter extends AbstractExporter
         return $events;
     }
 
-
     protected function processRequests(): array
     {
         return $this->config->get('cartographer.structured')
             ? $this->processStructuredRequests()
             : $this->processFlatRequests();
     }
+
     protected function processFlatRequests(): array
     {
         return $this->requests
@@ -211,24 +199,21 @@ final class PostmanExporter extends AbstractExporter
             'body' => $response['body'] ?? ''
         ];
     }
+
     protected function getRequestAuth(Request $request): ?array
     {
         // Allow per-request auth override
         if ($request->authentication) {
-            return [
-                'type' => $request->authentication['type'],
-                $request->authentication['type'] => [
-                    [
-                        'key' => 'token',
-                        'value' => $request->authentication['token'],
-                        'type' => 'string'
-                    ]
-                ]
-            ];
+            return AuthStrategyFactory::create(
+                type: $request->authentication['type'],
+                token: $request->authentication['token'] ?? null,
+                options: $request->authentication['options'] ?? []
+            )->toPostmanFormat();
         }
 
         return null;
     }
+
     protected function getProtocolProfileBehavior(): array
     {
         return array_filter([

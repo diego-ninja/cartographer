@@ -2,6 +2,7 @@
 
 namespace Ninja\Cartographer\Exporters;
 
+use Ninja\Cartographer\Authentication\Strategy\AuthStrategyFactory;
 use Ninja\Cartographer\DTO\Parameter;
 use Ninja\Cartographer\DTO\Request;
 use Ninja\Cartographer\Enums\Method;
@@ -12,6 +13,7 @@ final class InsomniaExporter extends AbstractExporter
 {
     private string $workspaceId;
     private array $resourceIds = [];
+
     protected function generateStructure(): array
     {
         $this->workspaceId = 'wrk_' . Str::uuid()->toString();
@@ -59,8 +61,8 @@ final class InsomniaExporter extends AbstractExporter
             ]
         ];
 
-        if ($this->authentication) {
-            $data['data']['token'] = $this->authentication->getToken();
+        if ($this->authProcessor->getStrategy()) {
+            $data['data']['token'] = $this->authProcessor->getStrategy()->getToken();
         }
 
         return $data;
@@ -148,7 +150,7 @@ final class InsomniaExporter extends AbstractExporter
             'description' => $request->description,
             'method' => $request->method->value,
             'headers' => $this->formatHeaders($request),
-            'authentication' => $this->formatAuthentication(),
+            'authentication' => $this->formatAuthentication($request),
             'metaSortKey' => $sortKey,
             'isPrivate' => false,
             'settingStoreCookies' => true,
@@ -206,21 +208,26 @@ final class InsomniaExporter extends AbstractExporter
             ->all();
     }
 
-    protected function formatAuthentication(): array
+    protected function formatAuthentication(Request $request): array
     {
-        if ( ! $this->authentication) {
-            return ['type' => 'none'];
+        // Check for per-request authentication override
+        if ($request->authentication) {
+            return AuthStrategyFactory::create(
+                type: $request->authentication['type'],
+                token: $request->authentication['token'] ?? null,
+                options: $request->authentication['options'] ?? []
+            )->toInsomniaFormat();
         }
 
-        return [
-            'type' => $this->authentication->getType(),
-            'token' => '{{ token }}',
-            'prefix' => $this->authentication->prefix(),
-            'disabled' => false,
-        ];
+        // Use global authentication if available
+        if ($this->authProcessor->getStrategy()) {
+            return $this->authProcessor->getStrategy()->toInsomniaFormat();
+        }
+
+        return ['type' => 'none'];
     }
 
-    protected function formatBody(Request $request): array
+    protected function formatBody(Request $request): ?array
     {
         $request = $request->generateDefaultBody();
         return $request->body?->forInsomnia();

@@ -2,27 +2,27 @@
 
 namespace Ninja\Cartographer\Exporters;
 
-use Ninja\Cartographer\Authentication\AuthenticationMethod;
 use Ninja\Cartographer\Collections\RequestCollection;
-use Ninja\Cartographer\Concerns\HasAuthentication;
-use Ninja\Cartographer\Contracts\Exporter;
+use Ninja\Cartographer\Processors\AuthenticationProcessor;
 use Ninja\Cartographer\Processors\RouteProcessor;
 use Illuminate\Config\Repository;
 use Illuminate\Support\Facades\File;
 use ReflectionException;
 
-abstract class AbstractExporter implements Exporter
+abstract class AbstractExporter
 {
-    use HasAuthentication;
-
     protected string $filename;
     protected array $output;
-
     protected RequestCollection $requests;
 
-    public function __construct(protected readonly Repository $config, private readonly RouteProcessor $processor) {}
+    public function __construct(
+        protected readonly Repository $config,
+        protected readonly RouteProcessor $router,
+        protected readonly AuthenticationProcessor $authProcessor
+    ) {}
 
     abstract protected function generateStructure(): array;
+
     public function to(string $filename): self
     {
         $this->filename = $filename;
@@ -39,15 +39,8 @@ abstract class AbstractExporter implements Exporter
      */
     public function export(): void
     {
-        $this->resolveAuth();
-        $this->requests = $this->processor->process();
+        $this->requests = $this->router->process();
         $this->output = $this->generateStructure();
-    }
-
-    public function setAuthentication(?AuthenticationMethod $authentication): self
-    {
-        $this->authentication = $authentication;
-        return $this;
     }
 
     protected function getScript(string $type): ?string

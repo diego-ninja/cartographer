@@ -3,26 +3,30 @@
 namespace Ninja\Cartographer\Commands;
 
 use Exception;
-use Ninja\Cartographer\Authentication\Basic;
-use Ninja\Cartographer\Authentication\Bearer;
+use Ninja\Cartographer\Authentication\Strategy\AuthStrategyFactory;
 use Ninja\Cartographer\Enums\Format;
 use Ninja\Cartographer\Exporters\InsomniaExporter;
 use Ninja\Cartographer\Exporters\PostmanExporter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Ninja\Cartographer\Processors\AuthenticationProcessor;
 use ReflectionException;
 
 class ExportCollectionCommand extends Command
 {
-    /** @var string */
     protected $signature = 'cartographer:export
                             {--format= : The format for the collection [postman|insomnia|bruno](default: postman)}
                             {--bearer= : The bearer token to use on your endpoints}
                             {--basic= : The basic auth to use on your endpoints}';
 
-    /** @var string */
     protected $description = 'Automatically generate a request collection for your API routes';
+
+    public function __construct(
+        private readonly AuthenticationProcessor $authProcessor
+    ) {
+        parent::__construct();
+    }
 
     /**
      * @throws ReflectionException
@@ -38,10 +42,14 @@ class ExportCollectionCommand extends Command
             config('cartographer.filename'),
         );
 
-        config()->set('cartographer.authentication', [
-            'method' => $this->option('bearer') ? 'bearer' : ($this->option('basic') ? 'basic' : null),
-            'token' => $this->option('bearer') ?? $this->option('basic') ?? null,
-        ]);
+        // Set authentication based on command options
+        if (filled($this->option('bearer'))) {
+            $strategy = AuthStrategyFactory::create('bearer', $this->option('bearer'));
+            $this->authProcessor->setStrategy($strategy);
+        } elseif (filled($this->option('basic'))) {
+            $strategy = AuthStrategyFactory::create('basic', $this->option('basic'));
+            $this->authProcessor->setStrategy($strategy);
+        }
 
         $exporter = match ($format) {
             Format::Insomnia => app(InsomniaExporter::class),
@@ -49,20 +57,7 @@ class ExportCollectionCommand extends Command
             Format::Bruno => throw new Exception('To be implemented'),
         };
 
-        $exporter
-            ->to($filename)
-            ->setAuthentication(value(function () {
-                if (filled($this->option('bearer'))) {
-                    return new Bearer($this->option('bearer'));
-                }
-
-                if (filled($this->option('basic'))) {
-                    return new Basic($this->option('basic'));
-                }
-
-                return null;
-            }))
-            ->export();
+        $exporter->to($filename)->export();
 
         Storage::disk(config('cartographer.disk'))
             ->put(sprintf('%s/%s', $format->value, $filename), $exporter->getOutput());

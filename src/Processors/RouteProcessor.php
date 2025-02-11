@@ -1,15 +1,9 @@
 <?php
 
 namespace Ninja\Cartographer\Processors;
-use Ninja\Cartographer\Attributes\Request as RequestAttribute;
-use Ninja\Cartographer\Collections\HeaderCollection;
-use Ninja\Cartographer\Collections\ParameterCollection;
 use Ninja\Cartographer\Collections\RequestCollection;
-use Ninja\Cartographer\Concerns\HasAuthentication;
-use Ninja\Cartographer\DTO\Body;
 use Ninja\Cartographer\DTO\Request;
 use Ninja\Cartographer\DTO\Url;
-use Ninja\Cartographer\Enums\BodyMode;
 use Ninja\Cartographer\Enums\Method;
 use Closure;
 use Illuminate\Config\Repository;
@@ -21,18 +15,16 @@ use ReflectionException;
 use ReflectionFunction;
 use ReflectionMethod;
 
-final class RouteProcessor
+final readonly class RouteProcessor
 {
-    use HasAuthentication;
-
     public function __construct(
-        private readonly Router $router,
-        private readonly Repository $config,
-        private readonly AttributeProcessor $attributeProcessor,
-        private readonly AuthenticationProcessor $authProcessor,
-        private readonly ParameterProcessor $parameterProcessor,
-        private readonly BodyProcessor $bodyProcessor,
-        private readonly HeaderProcessor $headerProcessor
+        private Router                  $router,
+        private Repository              $config,
+        private AttributeProcessor      $attributeProcessor,
+        private AuthenticationProcessor $authProcessor,
+        private ParameterProcessor      $parameterProcessor,
+        private BodyProcessor           $bodyProcessor,
+        private HeaderProcessor         $headerProcessor
     ) {}
 
     /**
