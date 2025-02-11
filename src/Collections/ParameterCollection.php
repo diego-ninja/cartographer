@@ -55,13 +55,4 @@ final class ParameterCollection extends Collection
 
         return $this;
     }
-
-    public function fromFormRequest(mixed $reflectionMethod, array $formdata = []): self
-    {
-        if (!$reflectionMethod) {
-            return $this;
-        }
-
-        return $this->merge((new FormDataProcessor)->process($reflectionMethod, $formdata));
-    }
 }

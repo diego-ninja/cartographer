@@ -15,7 +15,7 @@ trait HasAuthentication
         $config = $this->config->get('cartographer.authentication');
 
         if ($config['method']) {
-            $className = Str::of('AndreasElia\\PostmanGenerator\\Authentication\\')
+            $className = Str::of('Ninja\\Cartographer\\Authentication\\')
                 ->append(ucfirst($config['method']))
                 ->toString();
 

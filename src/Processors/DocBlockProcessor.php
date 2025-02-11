@@ -13,7 +13,7 @@ use ReflectionFunction;
 use ReflectionMethod;
 use Throwable;
 
-class DocBlockProcessor
+final readonly class DocBlockProcessor
 {
     public function __invoke(ReflectionMethod|ReflectionFunction $reflectionMethod): string
     {

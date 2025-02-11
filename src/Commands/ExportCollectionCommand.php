@@ -2,6 +2,7 @@
 
 namespace Ninja\Cartographer\Commands;
 
+use Exception;
 use Ninja\Cartographer\Authentication\Basic;
 use Ninja\Cartographer\Authentication\Bearer;
 use Ninja\Cartographer\Enums\Format;
@@ -10,11 +11,12 @@ use Ninja\Cartographer\Exporters\PostmanExporter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use ReflectionException;
 
 class ExportCollectionCommand extends Command
 {
     /** @var string */
-    protected $signature = 'export:collection
+    protected $signature = 'cartographer:export
                             {--format= : The format for the collection [postman|insomnia|bruno](default: postman)}
                             {--bearer= : The bearer token to use on your endpoints}
                             {--basic= : The basic auth to use on your endpoints}';
@@ -22,6 +24,10 @@ class ExportCollectionCommand extends Command
     /** @var string */
     protected $description = 'Automatically generate a request collection for your API routes';
 
+    /**
+     * @throws ReflectionException
+     * @throws Exception
+     */
     public function handle(): void
     {
         $format = Format::tryFrom($this->option('format')) ?? Format::Postman;
@@ -39,8 +45,8 @@ class ExportCollectionCommand extends Command
 
         $exporter = match ($format) {
             Format::Insomnia => app(InsomniaExporter::class),
-            Format::Bruno => app(BrunoExporter::class),
             Format::Postman => app(PostmanExporter::class),
+            Format::Bruno => throw new Exception('To be implemented'),
         };
 
         $exporter

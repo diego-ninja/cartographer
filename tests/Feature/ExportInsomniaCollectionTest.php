@@ -16,8 +16,8 @@ class ExportInsomniaCollectionTest extends TestCase
     {
         parent::setUp();
 
-        config()->set('api-postman.filename', 'test.json');
-        config()->set('api-postman.base_url', 'http://api.test');
+        config()->set('cartographer.filename', 'test.json');
+        config()->set('cartographer.base_url', 'http://api.test');
 
         Storage::disk()->deleteDirectory('insomnia');
     }
@@ -33,11 +33,11 @@ class ExportInsomniaCollectionTest extends TestCase
     #[DataProvider('providerFormDataEnabled')]
     public function test_standard_export_works(bool $formDataEnabled): void
     {
-        config()->set('api-postman.enable_formdata', $formDataEnabled);
+        config()->set('cartographer.enable_formdata', $formDataEnabled);
 
-        $this->artisan('export:collection --format=insomnia')->assertExitCode(0);
+        $this->artisan('cartographer:export --format=insomnia')->assertExitCode(0);
 
-        $collection = json_decode(Storage::get('insomnia/' . config('api-postman.filename')), true);
+        $collection = json_decode(Storage::get('insomnia/' . config('cartographer.filename')), true);
 
         // Verify basic structure
         $this->assertEquals('export', $collection['_type']);
@@ -77,11 +77,11 @@ class ExportInsomniaCollectionTest extends TestCase
     #[DataProvider('providerFormDataEnabled')]
     public function test_bearer_export_works(bool $formDataEnabled): void
     {
-        config()->set('api-postman.enable_formdata', $formDataEnabled);
+        config()->set('cartographer.enable_formdata', $formDataEnabled);
 
-        $this->artisan('export:collection --format=insomnia --bearer=1234567890')->assertExitCode(0);
+        $this->artisan('cartographer:export --format=insomnia --bearer=1234567890')->assertExitCode(0);
 
-        $collection = json_decode(Storage::get('insomnia/' . config('api-postman.filename')), true);
+        $collection = json_decode(Storage::get('insomnia/' . config('cartographer.filename')), true);
 
         // Verify environment token
         $environment = Arr::first($collection['resources'], fn($r) => 'environment' === $r['_type']);
@@ -104,11 +104,11 @@ class ExportInsomniaCollectionTest extends TestCase
     #[DataProvider('providerFormDataEnabled')]
     public function test_basic_export_works(bool $formDataEnabled): void
     {
-        config()->set('api-postman.enable_formdata', $formDataEnabled);
+        config()->set('cartographer.enable_formdata', $formDataEnabled);
 
-        $this->artisan('export:collection --format=insomnia --basic=username:password1234')->assertExitCode(0);
+        $this->artisan('cartographer:export --format=insomnia --basic=username:password1234')->assertExitCode(0);
 
-        $collection = json_decode(Storage::get('insomnia/' . config('api-postman.filename')), true);
+        $collection = json_decode(Storage::get('insomnia/' . config('cartographer.filename')), true);
 
         // Verify environment token
         $environment = Arr::first($collection['resources'], fn($r) => 'environment' === $r['_type']);
@@ -132,13 +132,13 @@ class ExportInsomniaCollectionTest extends TestCase
     public function test_structured_export_works(bool $formDataEnabled): void
     {
         config([
-            'api-postman.structured' => true,
-            'api-postman.enable_formdata' => $formDataEnabled,
+            'cartographer.structured' => true,
+            'cartographer.enable_formdata' => $formDataEnabled,
         ]);
 
-        $this->artisan('export:collection --format=insomnia')->assertExitCode(0);
+        $this->artisan('cartographer:export --format=insomnia')->assertExitCode(0);
 
-        $collection = json_decode(Storage::get('insomnia/' . config('api-postman.filename')), true);
+        $collection = json_decode(Storage::get('insomnia/' . config('cartographer.filename')), true);
 
         // Verify folders exist
         $folders = Arr::where($collection['resources'], fn($r) => 'request_group' === $r['_type']);
@@ -154,14 +154,15 @@ class ExportInsomniaCollectionTest extends TestCase
     public function test_rules_printing_export_works(): void
     {
         config([
-            'api-postman.enable_formdata' => true,
-            'api-postman.print_rules' => true,
-            'api-postman.rules_to_human_readable' => false,
+            'cartographer.enable_formdata' => true,
+            'cartographer.print_rules' => true,
+            'cartographer.rules_to_human_readable' => false,
+            'cartographer.body_mode' => 'formdata',
         ]);
 
-        $this->artisan('export:collection --format=insomnia')->assertExitCode(0);
+        $this->artisan('cartographer:export --format=insomnia')->assertExitCode(0);
 
-        $collection = json_decode(Storage::get('insomnia/' . config('api-postman.filename')), true);
+        $collection = json_decode(Storage::get('insomnia/' . config('cartographer.filename')), true);
         $requests = Arr::where($collection['resources'], fn($r) => 'request' === $r['_type']);
 
         $targetRequest = Arr::first($requests, fn($r) => str_contains($r['name'], 'store-with-form-request'));
@@ -177,14 +178,14 @@ class ExportInsomniaCollectionTest extends TestCase
     public function test_rules_printing_get_export_works(): void
     {
         config([
-            'api-postman.enable_formdata' => true,
-            'api-postman.print_rules' => true,
-            'api-postman.rules_to_human_readable' => false,
+            'cartographer.enable_formdata' => true,
+            'cartographer.print_rules' => true,
+            'cartographer.rules_to_human_readable' => false,
         ]);
 
-        $this->artisan('export:collection --format=insomnia')->assertExitCode(0);
+        $this->artisan('cartographer:export --format=insomnia')->assertExitCode(0);
 
-        $collection = json_decode(Storage::get('insomnia/' . config('api-postman.filename')), true);
+        $collection = json_decode(Storage::get('insomnia/' . config('cartographer.filename')), true);
         $requests = Arr::where($collection['resources'], fn($r) => 'request' === $r['_type']);
 
         $targetRequest = Arr::first($requests, fn($r) => str_contains($r['name'], 'get-with-form-request'));
@@ -200,14 +201,14 @@ class ExportInsomniaCollectionTest extends TestCase
     public function test_rules_printing_export_to_human_readable_works(): void
     {
         config([
-            'api-postman.enable_formdata' => true,
-            'api-postman.print_rules' => true,
-            'api-postman.rules_to_human_readable' => true,
+            'cartographer.enable_formdata' => true,
+            'cartographer.print_rules' => true,
+            'cartographer.rules_to_human_readable' => true,
         ]);
 
-        $this->artisan('export:collection --format=insomnia')->assertExitCode(0);
+        $this->artisan('cartographer:export --format=insomnia')->assertExitCode(0);
 
-        $collection = json_decode(Storage::get('insomnia/' . config('api-postman.filename')), true);
+        $collection = json_decode(Storage::get('insomnia/' . config('cartographer.filename')), true);
         $requests = Arr::where($collection['resources'], fn($r) => 'request' === $r['_type']);
 
         $targetRequest = Arr::first($requests, fn($r) => str_contains($r['name'], 'store-with-form-request'));
@@ -223,9 +224,9 @@ class ExportInsomniaCollectionTest extends TestCase
 
     public function test_uri_is_correct(): void
     {
-        $this->artisan('export:collection --format=insomnia')->assertExitCode(0);
+        $this->artisan('cartographer:export --format=insomnia')->assertExitCode(0);
 
-        $collection = json_decode(Storage::get('insomnia/' . config('api-postman.filename')), true);
+        $collection = json_decode(Storage::get('insomnia/' . config('cartographer.filename')), true);
         $requests = Arr::where($collection['resources'], fn($r) => 'request' === $r['_type']);
 
         $targetRequest = Arr::first($requests, fn($r) => str_contains($r['name'], 'php-doc-route'));
@@ -237,9 +238,9 @@ class ExportInsomniaCollectionTest extends TestCase
 
     public function test_api_resource_routes_parameters(): void
     {
-        $this->artisan('export:collection --format=insomnia')->assertExitCode(0);
+        $this->artisan('cartographer:export --format=insomnia')->assertExitCode(0);
 
-        $collection = json_decode(Storage::get('insomnia/' . config('api-postman.filename')), true);
+        $collection = json_decode(Storage::get('insomnia/' . config('cartographer.filename')), true);
         $requests = Arr::where($collection['resources'], fn($r) => 'request' === $r['_type']);
 
         // Test hyphenated parameters

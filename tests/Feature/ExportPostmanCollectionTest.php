@@ -19,7 +19,7 @@ class ExportPostmanCollectionTest extends TestCase
     {
         parent::setUp();
 
-        config()->set('api-postman.filename', 'test.json');
+        config()->set('cartographer.filename', 'test.json');
 
         Storage::disk()->deleteDirectory('postman');
     }
@@ -39,11 +39,11 @@ class ExportPostmanCollectionTest extends TestCase
     #[DataProvider('providerFormDataEnabled')]
     public function test_standard_export_works(bool $formDataEnabled): void
     {
-        config()->set('api-postman.enable_formdata', $formDataEnabled);
+        config()->set('cartographer.enable_formdata', $formDataEnabled);
 
-        $this->artisan('export:collection')->assertExitCode(0);
+        $this->artisan('cartographer:export')->assertExitCode(0);
 
-        $collection = json_decode(Storage::get('postman/' . config('api-postman.filename')), true);
+        $collection = json_decode(Storage::get('postman/' . config('cartographer.filename')), true);
 
         $routes = $this->app['router']->getRoutes();
 
@@ -72,11 +72,11 @@ class ExportPostmanCollectionTest extends TestCase
     #[DataProvider('providerFormDataEnabled')]
     public function test_bearer_export_works(bool $formDataEnabled): void
     {
-        config()->set('api-postman.enable_formdata', $formDataEnabled);
+        config()->set('cartographer.enable_formdata', $formDataEnabled);
 
-        $this->artisan('export:collection --bearer=1234567890')->assertExitCode(0);
+        $this->artisan('cartographer:export --bearer=1234567890')->assertExitCode(0);
 
-        $collection = json_decode(Storage::get('postman/' . config('api-postman.filename')), true);
+        $collection = json_decode(Storage::get('postman/' . config('cartographer.filename')), true);
 
         $routes = $this->app['router']->getRoutes();
 
@@ -115,11 +115,11 @@ class ExportPostmanCollectionTest extends TestCase
     #[DataProvider('providerFormDataEnabled')]
     public function test_basic_export_works(bool $formDataEnabled): void
     {
-        config()->set('api-postman.enable_formdata', $formDataEnabled);
+        config()->set('cartographer.enable_formdata', $formDataEnabled);
 
-        $this->artisan('export:collection --basic=username:password1234')->assertExitCode(0);
+        $this->artisan('cartographer:export --basic=username:password1234')->assertExitCode(0);
 
-        $collection = json_decode(Storage::get('postman/' . config('api-postman.filename')), true);
+        $collection = json_decode(Storage::get('postman/' . config('cartographer.filename')), true);
 
         $routes = $this->app['router']->getRoutes();
 
@@ -159,13 +159,13 @@ class ExportPostmanCollectionTest extends TestCase
     public function test_structured_export_works(bool $formDataEnabled): void
     {
         config([
-            'api-postman.structured' => true,
-            'api-postman.enable_formdata' => $formDataEnabled,
+            'cartographer.structured' => true,
+            'cartographer.enable_formdata' => $formDataEnabled,
         ]);
 
-        $this->artisan('export:collection')->assertExitCode(0);
+        $this->artisan('cartographer:export')->assertExitCode(0);
 
-        $collection = json_decode(Storage::get('postman/' . config('api-postman.filename')), true);
+        $collection = json_decode(Storage::get('postman/' . config('cartographer.filename')), true);
 
         $routes = $this->app['router']->getRoutes();
 
@@ -177,15 +177,15 @@ class ExportPostmanCollectionTest extends TestCase
     public function test_rules_printing_export_works(): void
     {
         config([
-            'api-postman.enable_formdata' => true,
-            'api-postman.print_rules' => true,
-            'api-postman.rules_to_human_readable' => false,
-            'api-postman.body_mode' => BodyMode::UrlEncoded->value,
+            'cartographer.enable_formdata' => true,
+            'cartographer.print_rules' => true,
+            'cartographer.rules_to_human_readable' => false,
+            'cartographer.body_mode' => BodyMode::UrlEncoded->value,
         ]);
 
-        $this->artisan('export:collection')->assertExitCode(0);
+        $this->artisan('cartographer:export')->assertExitCode(0);
 
-        $collection = collect(json_decode(Storage::get('postman/' . config('api-postman.filename')), true)['item']);
+        $collection = collect(json_decode(Storage::get('postman/' . config('cartographer.filename')), true)['item']);
 
         $targetRequest = $collection
             ->where('name', 'example.store-with-form-request')
@@ -201,16 +201,16 @@ class ExportPostmanCollectionTest extends TestCase
     public function test_rules_printing_get_export_works(): void
     {
         config([
-            'api-postman.enable_formdata' => true,
-            'api-postman.print_rules' => true,
-            'api-postman.rules_to_human_readable' => false,
+            'cartographer.enable_formdata' => true,
+            'cartographer.print_rules' => true,
+            'cartographer.rules_to_human_readable' => false,
         ]);
 
-        $this->artisan('export:collection')->assertExitCode(0);
+        $this->artisan('cartographer:export')->assertExitCode(0);
 
         $this->assertTrue(true);
 
-        $collection = collect(json_decode(Storage::get('postman/' . config('api-postman.filename')), true)['item']);
+        $collection = collect(json_decode(Storage::get('postman/' . config('cartographer.filename')), true)['item']);
 
         $targetRequest = $collection
             ->where('name', 'example.get-with-form-request')
@@ -248,15 +248,15 @@ class ExportPostmanCollectionTest extends TestCase
     public function test_rules_printing_export_to_human_readable_works(): void
     {
         config([
-            'api-postman.enable_formdata' => true,
-            'api-postman.print_rules' => true,
-            'api-postman.rules_to_human_readable' => true,
-            'api-postman.body_mode' => BodyMode::UrlEncoded->value,
+            'cartographer.enable_formdata' => true,
+            'cartographer.print_rules' => true,
+            'cartographer.rules_to_human_readable' => true,
+            'cartographer.body_mode' => BodyMode::UrlEncoded->value,
         ]);
 
-        $this->artisan('export:collection')->assertExitCode(0);
+        $this->artisan('cartographer:export')->assertExitCode(0);
 
-        $collection = collect(json_decode(Storage::get('postman/' . config('api-postman.filename')), true)['item']);
+        $collection = collect(json_decode(Storage::get('postman/' . config('cartographer.filename')), true)['item']);
 
         $targetRequest = $collection
             ->where('name', 'example.store-with-form-request')
@@ -285,13 +285,13 @@ class ExportPostmanCollectionTest extends TestCase
         $eventScriptPath = 'tests/Fixtures/ExampleEvent.js';
 
         config([
-            'api-postman.scripts.pre-request.path' => $eventScriptPath,
-            'api-postman.scripts.test.path' => $eventScriptPath,
+            'cartographer.scripts.pre-request.path' => $eventScriptPath,
+            'cartographer.scripts.test.path' => $eventScriptPath,
         ]);
 
-        $this->artisan('export:collection')->assertExitCode(0);
+        $this->artisan('cartographer:export')->assertExitCode(0);
 
-        $collection = collect(json_decode(Storage::get('postman/' . config('api-postman.filename')), true)['event']);
+        $collection = collect(json_decode(Storage::get('postman/' . config('cartographer.filename')), true)['event']);
 
         $events = $collection
             ->whereIn('listen', ['prerequest', 'test'])
@@ -299,22 +299,22 @@ class ExportPostmanCollectionTest extends TestCase
 
         $this->assertCount(2, $events);
 
-        $content = file_get_contents($eventScriptPath);
+        $content = trim(file_get_contents($eventScriptPath));
 
         foreach ($events as $event) {
-            $this->assertEquals($event['script']['exec'], $content);
+            $this->assertEquals(Arr::first($event['script']['exec']), $content);
         }
     }
 
     public function test_php_doc_comment_export(): void
     {
         config([
-            'api-postman.include_doc_comments' => true,
+            'cartographer.include_doc_comments' => true,
         ]);
 
-        $this->artisan('export:collection')->assertExitCode(0);
+        $this->artisan('cartographer:export')->assertExitCode(0);
 
-        $collection = collect(json_decode(Storage::get('postman/' . config('api-postman.filename')), true)['item']);
+        $collection = collect(json_decode(Storage::get('postman/' . config('cartographer.filename')), true)['item']);
 
         $targetRequest = $collection
             ->where('name', 'example.php-doc-route')
@@ -325,9 +325,9 @@ class ExportPostmanCollectionTest extends TestCase
 
     public function test_uri_is_correct(): void
     {
-        $this->artisan('export:collection')->assertExitCode(0);
+        $this->artisan('cartographer:export')->assertExitCode(0);
 
-        $collection = collect(json_decode(Storage::get('postman/' . config('api-postman.filename')), true)['item']);
+        $collection = collect(json_decode(Storage::get('postman/' . config('cartographer.filename')), true)['item']);
 
         $targetRequest = $collection
             ->where('name', 'example.php-doc-route')
@@ -339,9 +339,9 @@ class ExportPostmanCollectionTest extends TestCase
 
     public function test_api_resource_routes_set_parameters_correctly_with_hyphens(): void
     {
-        $this->artisan('export:collection')->assertExitCode(0);
+        $this->artisan('cartographer:export')->assertExitCode(0);
 
-        $collection = collect(json_decode(Storage::get('postman/' . config('api-postman.filename')), true)['item']);
+        $collection = collect(json_decode(Storage::get('postman/' . config('cartographer.filename')), true)['item']);
 
         $targetRequest = $collection
             ->where('name', 'example.users.audit-logs.update')
@@ -354,9 +354,9 @@ class ExportPostmanCollectionTest extends TestCase
 
     public function test_api_resource_routes_set_parameters_correctly_with_underscores(): void
     {
-        $this->artisan('export:collection')->assertExitCode(0);
+        $this->artisan('cartographer:export')->assertExitCode(0);
 
-        $collection = collect(json_decode(Storage::get('postman/' . config('api-postman.filename')), true)['item']);
+        $collection = collect(json_decode(Storage::get('postman/' . config('cartographer.filename')), true)['item']);
 
         $targetRequest = $collection
             ->where('name', 'example.users.other_logs.update')
@@ -369,9 +369,9 @@ class ExportPostmanCollectionTest extends TestCase
 
     public function test_api_resource_routes_set_parameters_correctly_with_camel_case(): void
     {
-        $this->artisan('export:collection')->assertExitCode(0);
+        $this->artisan('cartographer:export')->assertExitCode(0);
 
-        $collection = collect(json_decode(Storage::get('postman/' . config('api-postman.filename')), true)['item']);
+        $collection = collect(json_decode(Storage::get('postman/' . config('cartographer.filename')), true)['item']);
 
         $targetRequest = $collection
             ->where('name', 'example.users.someLogs.update')
@@ -384,9 +384,9 @@ class ExportPostmanCollectionTest extends TestCase
 
     public function test_request_attributes_are_applied(): void
     {
-        $this->artisan('export:collection')->assertExitCode(0);
+        $this->artisan('cartographer:export')->assertExitCode(0);
 
-        $collection = collect(json_decode(Storage::get('postman/' . config('api-postman.filename')), true)['item']);
+        $collection = collect(json_decode(Storage::get('postman/' . config('cartographer.filename')), true)['item']);
 
         $indexRequest = $collection->where('name', 'List Audit Logs')->first();
         $this->assertEquals('List all audit logs', $indexRequest['request']['description']);
@@ -400,12 +400,12 @@ class ExportPostmanCollectionTest extends TestCase
     public function test_request_groups_are_applied_in_structured_mode(): void
     {
         config([
-            'api-postman.structured' => true
+            'cartographer.structured' => true
         ]);
 
-        $this->artisan('export:collection')->assertExitCode(0);
+        $this->artisan('cartographer:export')->assertExitCode(0);
 
-        $collection = json_decode(Storage::get('postman/' . config('api-postman.filename')), true);
+        $collection = json_decode(Storage::get('postman/' . config('cartographer.filename')), true);
 
         $logsFolder = Arr::first($collection['item'], function ($item) {
             return isset($item['name']) && $item['name'] === 'Logs';

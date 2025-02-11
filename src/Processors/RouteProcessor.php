@@ -29,42 +29,44 @@ final class RouteProcessor
         private readonly Router $router,
         private readonly Repository $config,
         private readonly AttributeProcessor $attributeProcessor,
-    ) {
-        $this->resolveAuth();
-    }
+        private readonly AuthenticationProcessor $authProcessor,
+        private readonly ParameterProcessor $parameterProcessor,
+        private readonly BodyProcessor $bodyProcessor,
+        private readonly HeaderProcessor $headerProcessor
+    ) {}
 
     /**
      * @throws ReflectionException
      */
     public function process(): RequestCollection
     {
-        $routes = collect($this->router->getRoutes());
-        $collection = new RequestCollection();
-
-        foreach ($routes as $route) {
-            $this->processRoute($route, $collection);
-        }
-
-        return $collection;
+        return collect($this->router->getRoutes())
+            ->reduce(function (RequestCollection $collection, Route $route) {
+                $this->processRoute($route, $collection);
+                return $collection;
+            }, new RequestCollection());
     }
 
     /**
      * @throws ReflectionException
      */
-    protected function processRoute(Route $route, RequestCollection $collection): void
+    private function processRoute(Route $route, RequestCollection $collection): void
     {
         $methods = array_filter(
             array_map(fn($value) => Method::tryFrom(mb_strtoupper($value)), $route->methods()),
-            fn(Method $method) => Method::HEAD !== $method,
+            fn(Method $method) => Method::HEAD !== $method
         );
 
         $middlewares = $route->gatherMiddleware();
+        if (!$this->shouldProcessRoute($middlewares)) {
+            return;
+        }
 
-        // Get reflection method/function and attributes if available
+        // Get reflection method/function and attributes
         $reflector = $this->getReflectionMethod($route->getAction());
         $requestAttributes = $reflector ? $this->attributeProcessor->getRequestAttribute($reflector) : null;
 
-        // Get collection attributes only if we have a class method
+        // Get collection attributes if we have a class method
         $collectionAttributes = null;
         if ($reflector instanceof ReflectionMethod) {
             $collectionAttributes = $this->attributeProcessor->getCollectionAttribute(
@@ -73,9 +75,7 @@ final class RouteProcessor
         }
 
         foreach ($methods as $method) {
-            if (!$this->shouldProcessRoute($middlewares)) {
-                continue;
-            }
+            $parameters = $this->parameterProcessor->processParameters($route, $requestAttributes, $reflector);
 
             $request = new Request(
                 id: Str::uuid(),
@@ -83,16 +83,16 @@ final class RouteProcessor
                 method: $method,
                 uri: $route->uri(),
                 description: $requestAttributes?->description ?? $this->getDescription($route),
-                headers: $this->getHeaders($requestAttributes),
-                parameters: $this->getParameters($route),
+                headers: $this->headerProcessor->processHeaders($requestAttributes),
+                parameters: $parameters,
                 url: Url::fromRoute(
                     route: $route,
                     method: $method,
-                    formParameters: $this->getParameters($route),
+                    formParameters: $parameters
                 ),
-                authentication: $this->getAuthenticationInfo($middlewares),
-                body: Method::GET === $method ? null : $this->getBody($route),
-                group: $requestAttributes?->group ?? $collectionAttributes?->group ?? null,
+                authentication: $this->authProcessor->processRouteAuthentication($middlewares),
+                body: $this->bodyProcessor->processBody($route, $reflector),
+                group: $requestAttributes?->group ?? $collectionAttributes?->group ?? null
             );
 
             $collection->add($request);
@@ -102,92 +102,27 @@ final class RouteProcessor
     /**
      * @throws ReflectionException
      */
-    protected function getBody(Route $route): ?Body
-    {
-        if (in_array($route->methods()[0], ['GET', 'HEAD'])) {
-            return null;
-        }
-
-        $reflectionMethod = $this->getReflectionMethod($route->getAction());
-        if (!$reflectionMethod || !$this->config->get('cartographer.enable_formdata')) {
-            return null;
-        }
-
-        $formParameters = (new FormDataProcessor())->process($reflectionMethod);
-        if ($formParameters->isEmpty()) {
-            return null;
-        }
-
-        return Body::fromParameters(
-            parameters: $formParameters,
-            formdata: $this->config->get('cartographer.formdata', []),
-            mode: BodyMode::from($this->config->get('cartographer.body_mode', BodyMode::Raw->value)),
-        );
-
-    }
-
-    /**
-     * @throws ReflectionException
-     */
-    protected function getDescription(Route $route): string
+    private function getDescription(Route $route): string
     {
         if (!$this->config->get('cartographer.include_doc_comments')) {
             return '';
         }
 
         $reflectionMethod = $this->getReflectionMethod($route->getAction());
-        if (!$reflectionMethod) {
-            return '';
-        }
-
-        return (new DocBlockProcessor())($reflectionMethod);
+        return $reflectionMethod ? (new DocBlockProcessor())($reflectionMethod) : '';
     }
 
-    protected function shouldProcessRoute(array $middlewares): bool
+    private function shouldProcessRoute(array $middlewares): bool
     {
-        foreach ($middlewares as $middleware) {
-            if (in_array($middleware, $this->config->get('cartographer.include_middleware'))) {
-                return true;
-            }
-        }
-        return false;
+        return collect($middlewares)
+            ->intersect($this->config->get('cartographer.include_middleware'))
+            ->isNotEmpty();
     }
 
     /**
      * @throws ReflectionException
      */
-    protected function getParameters(Route $route, ?RequestAttribute $request = null): ParameterCollection
-    {
-        $parameters = new ParameterCollection();
-        return $parameters
-            ->fromRoute($route)
-            ->fromAttribute($request)
-            ->when(
-                $this->config->get('cartographer.enable_formdata') && Method::GET->value === $route->methods()[0],
-                fn(ParameterCollection $collection) => $collection->fromFormRequest(
-                    $this->getReflectionMethod($route->getAction()),
-                    $this->config->get('cartographer.formdata', [])
-                )
-            );
-    }
-
-    protected function getAuthenticationInfo(array $middlewares): ?array
-    {
-        if (in_array($this->config->get('cartographer.auth_middleware'), $middlewares)) {
-            $config = $this->config->get('cartographer.authentication');
-            return [
-                'type' => $config['method'],
-                'token' => $config['token'] ?? '{{token}}',
-            ];
-        }
-        return null;
-    }
-
-
-    /**
-     * @throws ReflectionException
-     */
-    protected function getReflectionMethod(array $action): ReflectionMethod|ReflectionFunction|null
+    private function getReflectionMethod(array $action): ReflectionMethod|ReflectionFunction|null
     {
         if ($this->containsSerializedClosure($action)) {
             $action['uses'] = unserialize($action['uses'])->getClosure();
@@ -216,7 +151,7 @@ final class RouteProcessor
 
     private function containsSerializedClosure(array $action): bool
     {
-        if ( ! is_string($action['uses'])) {
+        if (!is_string($action['uses'])) {
             return false;
         }
 
@@ -226,34 +161,6 @@ final class RouteProcessor
             'O:55:"Laravel\\SerializableClosure\\UnsignedSerializableClosure',
         ];
 
-        foreach ($needles as $needle) {
-            if (str_starts_with($action['uses'], $needle)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    protected function getHeaders(?RequestAttribute $request = null): HeaderCollection
-    {
-        $configHeaders = $this->config->get('cartographer.headers', []);
-
-        if (empty($request?->headers)) {
-            return HeaderCollection::from($configHeaders);
-        }
-
-        $mergedHeaders = collect($configHeaders)
-            ->merge($request->headers)
-            ->map(function($header, $key) {
-                if (is_string($key)) {
-                    return ['key' => $key, 'value' => $header];
-                }
-                return $header;
-            })
-            ->values()
-            ->all();
-
-        return HeaderCollection::from($mergedHeaders);
+        return Str::startsWith($action['uses'], $needles);
     }
 }

@@ -8,7 +8,7 @@ use Ninja\Cartographer\Enums\ParameterType;
 use Illuminate\Foundation\Http\FormRequest;
 use ReflectionParameter;
 
-class FormDataProcessor
+final readonly class FormDataProcessor
 {
     public function process($reflectionMethod, array $formdata = []): ParameterCollection
     {
