@@ -2,13 +2,11 @@
 
 namespace Ninja\Cartographer\Collections;
 
+use Illuminate\Routing\Route;
+use Illuminate\Support\Collection;
 use Ninja\Cartographer\Attributes\Request;
 use Ninja\Cartographer\DTO\Parameter;
 use Ninja\Cartographer\Enums\ParameterType;
-use Ninja\Cartographer\Formatters\RuleFormatter;
-use Ninja\Cartographer\Processors\FormDataProcessor;
-use Illuminate\Routing\Route;
-use Illuminate\Support\Collection;
 
 final class ParameterCollection extends Collection
 {
@@ -48,7 +46,7 @@ final class ParameterCollection extends Collection
                     name: $name,
                     value: '',
                     description: $description,
-                    type: ParameterType::QUERY
+                    type: ParameterType::QUERY,
                 ));
             }
         }

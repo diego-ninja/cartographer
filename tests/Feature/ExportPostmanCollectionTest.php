@@ -2,13 +2,13 @@
 
 namespace Ninja\Cartographer\Tests\Feature;
 
+use Illuminate\Routing\Route;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Storage;
 use Ninja\Cartographer\Enums\BodyMode;
 use Ninja\Cartographer\Enums\Method;
 use Ninja\Cartographer\Tests\Fixtures\PostmanCollectionHelpersTrait;
 use Ninja\Cartographer\Tests\TestCase;
-use Illuminate\Routing\Route;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 class ExportPostmanCollectionTest extends TestCase
@@ -286,12 +286,14 @@ class ExportPostmanCollectionTest extends TestCase
 
         config([
             'cartographer.scripts.pre-request.path' => $eventScriptPath,
-            'cartographer.scripts.test.path' => $eventScriptPath,
+            'cartographer.scripts.pre-request.enabled' => true,
+            'cartographer.scripts.after-response.path' => $eventScriptPath,
+            'cartographer.scripts.after-response.enabled' => true,
         ]);
 
         $this->artisan('cartographer:export')->assertExitCode(0);
 
-        $collection = collect(json_decode(Storage::get('postman/' . config('cartographer.filename')), true)['event']);
+        $collection = collect(json_decode(Storage::get('postman/' . config('cartographer.filename')), true));
 
         $events = $collection
             ->whereIn('listen', ['prerequest', 'test'])
@@ -299,7 +301,7 @@ class ExportPostmanCollectionTest extends TestCase
 
         $this->assertCount(2, $events);
 
-        $content = trim(file_get_contents($eventScriptPath));
+        $content = mb_trim(file_get_contents($eventScriptPath));
 
         foreach ($events as $event) {
             $this->assertEquals(Arr::first($event['script']['exec']), $content);
@@ -400,23 +402,19 @@ class ExportPostmanCollectionTest extends TestCase
     public function test_request_groups_are_applied_in_structured_mode(): void
     {
         config([
-            'cartographer.structured' => true
+            'cartographer.structured' => true,
         ]);
 
         $this->artisan('cartographer:export')->assertExitCode(0);
 
         $collection = json_decode(Storage::get('postman/' . config('cartographer.filename')), true);
 
-        $logsFolder = Arr::first($collection['item'], function ($item) {
-            return isset($item['name']) && $item['name'] === 'Logs';
-        });
+        $logsFolder = Arr::first($collection['item'], fn($item) => isset($item['name']) && 'Logs' === $item['name']);
 
         $this->assertNotNull($logsFolder);
         $this->assertArrayHasKey('item', $logsFolder);
 
-        $indexRequest = collect($logsFolder['item'])->first(function ($item) {
-            return $item['name'] === 'List Audit Logs';
-        });
+        $indexRequest = collect($logsFolder['item'])->first(fn($item) => 'List Audit Logs' === $item['name']);
 
         $this->assertNotNull($indexRequest);
         $this->assertEquals('List all audit logs', $indexRequest['request']['description']);

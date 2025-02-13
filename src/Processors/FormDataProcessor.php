@@ -2,20 +2,27 @@
 
 namespace Ninja\Cartographer\Processors;
 
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Routing\Route;
 use Ninja\Cartographer\Collections\ParameterCollection;
 use Ninja\Cartographer\DTO\Parameter;
 use Ninja\Cartographer\Enums\ParameterType;
-use Illuminate\Foundation\Http\FormRequest;
+use Ninja\Cartographer\Support\RouteReflector;
+use ReflectionException;
 use ReflectionParameter;
 
 final readonly class FormDataProcessor
 {
-    public function process($reflectionMethod, array $formdata = []): ParameterCollection
+    /**
+     * @throws ReflectionException
+     */
+    public function process(Route $route, array $formdata = []): ParameterCollection
     {
         $parameters = new ParameterCollection();
+        $rfx = RouteReflector::method($route);
 
         /** @var ReflectionParameter $rulesParameter */
-        $rulesParameter = collect($reflectionMethod->getParameters())
+        $rulesParameter = collect($rfx->getParameters())
             ->first(function ($value) {
                 $value = $value->getType();
                 return $value && is_subclass_of($value->getName(), FormRequest::class);
@@ -36,7 +43,7 @@ final readonly class FormDataProcessor
                     value: $formdata[$fieldName] ?? '',
                     description: '',
                     rules: $rule,
-                    type: ParameterType::QUERY
+                    type: ParameterType::QUERY,
                 ));
 
                 if (is_array($rule) && in_array('confirmed', $rule)) {
@@ -46,7 +53,7 @@ final readonly class FormDataProcessor
                         value: $formdata[$confirmationField] ?? '',
                         description: '',
                         rules: $rule,
-                        type: ParameterType::QUERY
+                        type: ParameterType::QUERY,
                     ));
                 }
             }

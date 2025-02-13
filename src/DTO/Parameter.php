@@ -2,8 +2,8 @@
 
 namespace Ninja\Cartographer\DTO;
 
-use Ninja\Cartographer\Enums\ParameterType;
 use JsonSerializable;
+use Ninja\Cartographer\Enums\ParameterType;
 
 final readonly class Parameter implements JsonSerializable
 {

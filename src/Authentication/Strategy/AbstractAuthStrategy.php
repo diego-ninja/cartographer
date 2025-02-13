@@ -7,8 +7,10 @@ use Ninja\Cartographer\Contracts\AuthenticationStrategy;
 abstract readonly class AbstractAuthStrategy implements AuthenticationStrategy
 {
     public function __construct(
-        protected ?string $token = null
+        protected ?string $token = null,
     ) {}
+
+    abstract public function prefix(): string;
 
     public function getToken(): string
     {
@@ -25,7 +27,7 @@ abstract readonly class AbstractAuthStrategy implements AuthenticationStrategy
         return [
             'key' => 'Authorization',
             'value' => sprintf('%s %s', $this->prefix(), $this->getToken()),
-            'type' => 'string'
+            'type' => 'string',
         ];
     }
 
@@ -37,9 +39,9 @@ abstract readonly class AbstractAuthStrategy implements AuthenticationStrategy
                 [
                     'key' => 'token',
                     'value' => $this->getToken(),
-                    'type' => 'string'
-                ]
-            ]
+                    'type' => 'string',
+                ],
+            ],
         ];
     }
 
@@ -49,9 +51,7 @@ abstract readonly class AbstractAuthStrategy implements AuthenticationStrategy
             'type' => $this->getType(),
             'token' => $this->getToken(),
             'prefix' => $this->prefix(),
-            'disabled' => false
+            'disabled' => false,
         ];
     }
-
-    abstract public function prefix(): string;
 }

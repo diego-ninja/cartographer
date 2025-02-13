@@ -12,7 +12,7 @@ class TestCase extends \Orchestra\Testbench\TestCase
         return ['Ninja\Cartographer\CartographerServiceProvider'];
     }
 
-    protected function defineRoutes($router)
+    protected function defineRoutes($router): void
     {
         $router->middleware('api')->prefix('example')->name('example.')->group(function ($router): void {
             $router->get('index', [ExampleController::class, 'index'])->name('index');

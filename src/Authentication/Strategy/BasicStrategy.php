@@ -14,7 +14,7 @@ final readonly class BasicStrategy extends AbstractAuthStrategy
         return [
             'key' => 'Authorization',
             'value' => sprintf('%s %s', $this->prefix(), base64_encode($this->getToken())),
-            'type' => 'string'
+            'type' => 'string',
         ];
     }
 
@@ -26,9 +26,9 @@ final readonly class BasicStrategy extends AbstractAuthStrategy
                 [
                     'key' => 'token',
                     'value' => $this->getToken(), // Token sin codificar para las variables
-                    'type' => 'string'
-                ]
-            ]
+                    'type' => 'string',
+                ],
+            ],
         ];
     }
 
@@ -38,7 +38,7 @@ final readonly class BasicStrategy extends AbstractAuthStrategy
             'type' => $this->getType(),
             'token' => '{{ token }}', // Siempre usamos la variable en Insomnia
             'prefix' => $this->prefix(),
-            'disabled' => false
+            'disabled' => false,
         ];
     }
 

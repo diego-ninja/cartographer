@@ -6,18 +6,23 @@ use Illuminate\Config\Repository;
 use Illuminate\Routing\Route;
 use Ninja\Cartographer\DTO\Body;
 use Ninja\Cartographer\Enums\BodyMode;
-use Ninja\Cartographer\Services\BodyContentHandler;
 use Ninja\Cartographer\Enums\Method;
+use Ninja\Cartographer\Services\BodyContentHandler;
+use Ninja\Cartographer\Support\RouteReflector;
+use ReflectionException;
 
 final readonly class BodyProcessor
 {
     public function __construct(
         private Repository $config,
         private FormDataProcessor $formDataProcessor,
-        private BodyContentHandler $bodyContentHandler
+        private BodyContentHandler $bodyContentHandler,
     ) {}
 
-    public function processBody(Route $route, mixed $reflectionMethod = null): ?Body
+    /**
+     * @throws ReflectionException
+     */
+    public function processBody(Route $route): ?Body
     {
         $method = Method::tryFrom(mb_strtoupper($route->methods()[0]));
 
@@ -25,11 +30,11 @@ final readonly class BodyProcessor
             return null;
         }
 
-        if (!$reflectionMethod || !$this->config->get('cartographer.enable_formdata')) {
+        if ( ! RouteReflector::method($route) || ! $this->config->get('cartographer.enable_formdata')) {
             return null;
         }
 
-        $formParameters = $this->formDataProcessor->process($reflectionMethod);
+        $formParameters = $this->formDataProcessor->process($route);
         if ($formParameters->isEmpty()) {
             return null;
         }
@@ -38,13 +43,13 @@ final readonly class BodyProcessor
         $content = $this->bodyContentHandler->prepareContent(
             parameters: $formParameters,
             mode: $mode,
-            formdata: $this->config->get('cartographer.formdata', [])
+            formdata: $this->config->get('cartographer.formdata', []),
         );
 
         return new Body(
             mode: $mode,
             content: $content,
-            options: $this->bodyContentHandler->getBodyOptions($mode)
+            options: $this->bodyContentHandler->getBodyOptions($mode),
         );
     }
 }

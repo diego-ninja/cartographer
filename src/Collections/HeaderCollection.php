@@ -2,9 +2,9 @@
 
 namespace Ninja\Cartographer\Collections;
 
+use Illuminate\Support\Collection;
 use Ninja\Cartographer\DTO\Header;
 use Ninja\Cartographer\Enums\ParameterType;
-use Illuminate\Support\Collection;
 
 final class HeaderCollection extends Collection
 {

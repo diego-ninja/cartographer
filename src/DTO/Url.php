@@ -2,12 +2,12 @@
 
 namespace Ninja\Cartographer\DTO;
 
-use Ninja\Cartographer\Collections\ParameterCollection;
-use Ninja\Cartographer\Enums\Method;
-use Ninja\Cartographer\Formatters\RuleFormatter;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Str;
 use JsonSerializable;
+use Ninja\Cartographer\Collections\ParameterCollection;
+use Ninja\Cartographer\Enums\Method;
+use Ninja\Cartographer\Formatters\RuleFormatter;
 
 final readonly class Url implements JsonSerializable
 {
@@ -76,6 +76,23 @@ final readonly class Url implements JsonSerializable
             'variable' => $this->variable,
             'query' => $this->query,
         ];
+    }
+
+    public function forInsomnia(): string
+    {
+        $url = preg_replace('#/+#', '/', mb_trim($this->raw, '/'));
+
+        if ( ! empty($this->query)) {
+            $queryString = http_build_query(
+                array_combine(
+                    array_column($this->query, 'key'),
+                    array_column($this->query, 'value'),
+                ),
+            );
+            $url .= '?' . $queryString;
+        }
+
+        return $url;
     }
 
     public function json(): string

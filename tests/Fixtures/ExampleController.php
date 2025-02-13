@@ -2,7 +2,6 @@
 
 namespace Ninja\Cartographer\Tests\Fixtures;
 
-use Ninja\Cartographer\Attributes\Request;
 use Illuminate\Routing\Controller;
 
 class ExampleController extends Controller

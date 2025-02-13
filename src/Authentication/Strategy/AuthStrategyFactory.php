@@ -17,19 +17,19 @@ final readonly class AuthStrategyFactory
     {
         $strategyClass = self::STRATEGIES[mb_strtolower($type)] ?? null;
 
-        if (!$strategyClass) {
+        if ( ! $strategyClass) {
             throw new InvalidArgumentException(
                 sprintf(
                     'Invalid authentication type "%s". Available types: %s',
                     $type,
-                    implode(', ', array_keys(self::STRATEGIES))
-                )
+                    implode(', ', array_keys(self::STRATEGIES)),
+                ),
             );
         }
 
         return match ($strategyClass) {
             ApiKeyStrategy::class => new ApiKeyStrategy($token, $options['prefix'] ?? 'ApiKey'),
-            default => new $strategyClass($token)
+            default => new $strategyClass($token),
         };
     }
 

@@ -19,9 +19,9 @@ final readonly class BearerStrategy extends AbstractAuthStrategy
     {
         return [
             'type' => $this->getType(),
-            'token' => '{{ token }}', // Siempre usamos la variable en Insomnia
+            'token' => '{{ token }}',
             'prefix' => $this->prefix(),
-            'disabled' => false
+            'disabled' => false,
         ];
     }
 
@@ -33,9 +33,9 @@ final readonly class BearerStrategy extends AbstractAuthStrategy
                 [
                     'key' => 'token',
                     'value' => $this->getToken(),
-                    'type' => 'string'
-                ]
-            ]
+                    'type' => 'string',
+                ],
+            ],
         ];
     }
 }

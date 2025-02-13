@@ -2,23 +2,23 @@
 
 namespace Ninja\Cartographer\Exporters;
 
-use Ninja\Cartographer\Collections\RequestCollection;
+use Illuminate\Config\Repository;
+use Ninja\Cartographer\Collections\RequestGroupCollection;
+use Ninja\Cartographer\Contracts\Exporter;
 use Ninja\Cartographer\Processors\AuthenticationProcessor;
 use Ninja\Cartographer\Processors\RouteProcessor;
-use Illuminate\Config\Repository;
-use Illuminate\Support\Facades\File;
 use ReflectionException;
 
-abstract class AbstractExporter
+abstract class AbstractExporter implements Exporter
 {
     protected string $filename;
     protected array $output;
-    protected RequestCollection $requests;
+    protected RequestGroupCollection $groups;
 
     public function __construct(
-        protected readonly Repository $config,
-        protected readonly RouteProcessor $router,
-        protected readonly AuthenticationProcessor $authProcessor
+        protected readonly Repository              $config,
+        protected readonly RouteProcessor          $routeProcessor,
+        protected readonly AuthenticationProcessor $authProcessor,
     ) {}
 
     abstract protected function generateStructure(): array;
@@ -39,22 +39,7 @@ abstract class AbstractExporter
      */
     public function export(): void
     {
-        $this->requests = $this->router->process();
+        $this->groups = $this->routeProcessor->process();
         $this->output = $this->generateStructure();
-    }
-
-    protected function getScript(string $type): ?string
-    {
-        $scriptConfig = $this->config->get(sprintf('cartographer.scripts.%s', $type));
-
-        if (!empty($scriptConfig['content'])) {
-            return $scriptConfig['content'];
-        }
-
-        if (!empty($scriptConfig['path']) && File::exists($scriptConfig['path'])) {
-            return File::get($scriptConfig['path']);
-        }
-
-        return null;
     }
 }

@@ -3,26 +3,31 @@
 namespace Ninja\Cartographer\Processors;
 
 use Illuminate\Config\Repository;
-use Ninja\Cartographer\Attributes\Request as RequestAttribute;
+use Illuminate\Routing\Route;
 use Ninja\Cartographer\Collections\HeaderCollection;
+use Ninja\Cartographer\Support\RouteReflector;
+use ReflectionException;
 
 final readonly class HeaderProcessor
 {
     public function __construct(
-        private Repository $config
+        private Repository $config,
+        private AttributeProcessor $attributeProcessor,
     ) {}
 
-    public function processHeaders(?RequestAttribute $request = null): HeaderCollection
+    /**
+     * @throws ReflectionException
+     */
+    public function processHeaders(Route $route): HeaderCollection
     {
         $configHeaders = $this->config->get('cartographer.headers', []);
+        $request = $this->attributeProcessor->getRequestAttribute(RouteReflector::method($route));
+        $collection = $this->attributeProcessor->getCollectionAttribute(RouteReflector::class($route));
 
-        if (empty($request?->headers)) {
-            return HeaderCollection::from($configHeaders);
-        }
-
-        $mergedHeaders = collect($configHeaders)
-            ->merge($request->headers)
-            ->map(function($header, $key) {
+        $headers = collect($configHeaders)
+            ->merge($request?->headers ?? [])
+            ->merge($collection?->headers ?? [])
+            ->map(function ($header, $key) {
                 if (is_string($key)) {
                     return ['key' => $key, 'value' => $header];
                 }
@@ -31,6 +36,6 @@ final readonly class HeaderProcessor
             ->values()
             ->all();
 
-        return HeaderCollection::from($mergedHeaders);
+        return HeaderCollection::from($headers);
     }
 }

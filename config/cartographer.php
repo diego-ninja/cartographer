@@ -40,12 +40,14 @@ return [
     | Structured
     |--------------------------------------------------------------------------
     |
-    | If you want folders to be generated based on namespace/group.
-    |
-    |
+    | If you want folders to be generated based on namespace/group. You can
+    | choose to structure by route path or route name. If you choose to
+    | structure by route name, the route name will be used as the folder and the valid
+    | separators are '.', ':' and '::'.
     */
 
     'structured' => false,
+    'structured_by' => 'path', // @requires: 'structured' ===  true, valid options: 'path', 'name'
 
     /*
     |--------------------------------------------------------------------------
@@ -95,12 +97,7 @@ return [
             'content' => '',
             'enabled' => false,
         ],
-        'post-response' => [
-            'path' => '',
-            'content' => '',
-            'enabled' => false,
-        ],
-        'test' => [
+        'after-response' => [
             'path' => '',
             'content' => '',
             'enabled' => false,
@@ -130,7 +127,7 @@ return [
 
     'body_options' => [
         'raw' => [
-            'language' => 'json'
+            'language' => 'json',
         ],
     ],
 

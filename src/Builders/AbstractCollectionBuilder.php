@@ -3,8 +3,7 @@
 namespace Ninja\Cartographer\Builders;
 
 use Illuminate\Config\Repository;
-use Ninja\Cartographer\Collections\RequestCollection;
-use Ninja\Cartographer\DTO\Request;
+use Ninja\Cartographer\Collections\RequestGroupCollection;
 use Ninja\Cartographer\Processors\AuthenticationProcessor;
 use Ramsey\Uuid\UuidInterface;
 
@@ -12,17 +11,16 @@ abstract class AbstractCollectionBuilder
 {
     protected array $structure = [];
     protected array $variables = [];
-    protected array $events = [];
-    protected ?array $auth = null;
-    protected array $items = [];
 
     public function __construct(
         protected readonly Repository $config,
         protected readonly AuthenticationProcessor $authProcessor,
-        protected readonly RequestCollection $requests
+        protected readonly RequestGroupCollection $groups,
     ) {}
 
     abstract public function build(): array;
+
+    abstract protected function generateInfo(string $name, string $description, UuidInterface $id): array;
 
     public function addBasicInfo(string $name, string $description, UuidInterface $id): self
     {
@@ -41,31 +39,12 @@ abstract class AbstractCollectionBuilder
         return $this;
     }
 
-    public function addEvent(string $type, string $script): self
+    public function when(mixed $value, callable $callback): self
     {
-        $this->events[] = [
-            'type' => $type,
-            'script' => $script,
-        ];
+        if ($value) {
+            $callback($this);
+        }
+
         return $this;
     }
-
-    public function setAuthentication(?array $auth): self
-    {
-        $this->auth = $auth;
-        return $this;
-    }
-
-    public function processRequests(bool $structured = false): self
-    {
-        $this->items = $structured
-            ? $this->processStructuredRequests()
-            : $this->processFlatRequests();
-        return $this;
-    }
-
-    abstract protected function generateInfo(string $name, string $description, UuidInterface $id): array;
-    abstract protected function processStructuredRequests(): array;
-    abstract protected function processFlatRequests(): array;
-    abstract protected function formatRequest(Request $request): array;
 }

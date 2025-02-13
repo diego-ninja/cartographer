@@ -1,18 +1,18 @@
 <?php
 
 namespace Ninja\Cartographer\Processors;
-use Ninja\Cartographer\Collections\RequestCollection;
-use Ninja\Cartographer\DTO\Request;
-use Ninja\Cartographer\DTO\Url;
-use Ninja\Cartographer\Enums\Method;
-use Closure;
+
 use Illuminate\Config\Repository;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Str;
-use ReflectionClass;
+use Ninja\Cartographer\Collections\RequestCollection;
+use Ninja\Cartographer\Collections\RequestGroupCollection;
+use Ninja\Cartographer\DTO\Request;
+use Ninja\Cartographer\DTO\Url;
+use Ninja\Cartographer\Enums\Method;
+use Ninja\Cartographer\Support\RouteReflector;
 use ReflectionException;
-use ReflectionFunction;
 use ReflectionMethod;
 
 final readonly class RouteProcessor
@@ -24,19 +24,23 @@ final readonly class RouteProcessor
         private AuthenticationProcessor $authProcessor,
         private ParameterProcessor      $parameterProcessor,
         private BodyProcessor           $bodyProcessor,
-        private HeaderProcessor         $headerProcessor
+        private HeaderProcessor         $headerProcessor,
+        private ScriptsProcessor        $scriptsProcessor,
+        private GroupProcessor          $groupProcessor,
     ) {}
 
     /**
      * @throws ReflectionException
      */
-    public function process(): RequestCollection
+    public function process(): RequestGroupCollection
     {
-        return collect($this->router->getRoutes())
+        $requests = collect($this->router->getRoutes())
             ->reduce(function (RequestCollection $collection, Route $route) {
                 $this->processRoute($route, $collection);
                 return $collection;
             }, new RequestCollection());
+
+        return $this->groupProcessor->processRequests($requests);
     }
 
     /**
@@ -46,28 +50,28 @@ final readonly class RouteProcessor
     {
         $methods = array_filter(
             array_map(fn($value) => Method::tryFrom(mb_strtoupper($value)), $route->methods()),
-            fn(Method $method) => Method::HEAD !== $method
+            fn(Method $method) => Method::HEAD !== $method,
         );
 
         $middlewares = $route->gatherMiddleware();
-        if (!$this->shouldProcessRoute($middlewares)) {
+        if ( ! $this->shouldProcessRoute($middlewares)) {
             return;
         }
 
         // Get reflection method/function and attributes
-        $reflector = $this->getReflectionMethod($route->getAction());
+        $reflector = RouteReflector::method($route);
         $requestAttributes = $reflector ? $this->attributeProcessor->getRequestAttribute($reflector) : null;
 
         // Get collection attributes if we have a class method
         $collectionAttributes = null;
         if ($reflector instanceof ReflectionMethod) {
             $collectionAttributes = $this->attributeProcessor->getCollectionAttribute(
-                $reflector->getDeclaringClass()->getName()
+                $reflector->getDeclaringClass()->getName(),
             );
         }
 
         foreach ($methods as $method) {
-            $parameters = $this->parameterProcessor->processParameters($route, $requestAttributes, $reflector);
+            $parameters = $this->parameterProcessor->processParameters($route);
 
             $request = new Request(
                 id: Str::uuid(),
@@ -75,16 +79,17 @@ final readonly class RouteProcessor
                 method: $method,
                 uri: $route->uri(),
                 description: $requestAttributes?->description ?? $this->getDescription($route),
-                headers: $this->headerProcessor->processHeaders($requestAttributes),
+                headers: $this->headerProcessor->processHeaders($route),
                 parameters: $parameters,
                 url: Url::fromRoute(
                     route: $route,
                     method: $method,
-                    formParameters: $parameters
+                    formParameters: $parameters,
                 ),
                 authentication: $this->authProcessor->processRouteAuthentication($middlewares),
-                body: $this->bodyProcessor->processBody($route, $reflector),
-                group: $requestAttributes?->group ?? $collectionAttributes?->group ?? null
+                body: $this->bodyProcessor->processBody($route),
+                scripts: $this->scriptsProcessor->processScripts($route),
+                group: $requestAttributes?->group ?? $collectionAttributes?->group ?? null,
             );
 
             $collection->add($request);
@@ -96,11 +101,11 @@ final readonly class RouteProcessor
      */
     private function getDescription(Route $route): string
     {
-        if (!$this->config->get('cartographer.include_doc_comments')) {
+        if ( ! $this->config->get('cartographer.include_doc_comments')) {
             return '';
         }
 
-        $reflectionMethod = $this->getReflectionMethod($route->getAction());
+        $reflectionMethod = RouteReflector::method($route);
         return $reflectionMethod ? (new DocBlockProcessor())($reflectionMethod) : '';
     }
 
@@ -109,50 +114,5 @@ final readonly class RouteProcessor
         return collect($middlewares)
             ->intersect($this->config->get('cartographer.include_middleware'))
             ->isNotEmpty();
-    }
-
-    /**
-     * @throws ReflectionException
-     */
-    private function getReflectionMethod(array $action): ReflectionMethod|ReflectionFunction|null
-    {
-        if ($this->containsSerializedClosure($action)) {
-            $action['uses'] = unserialize($action['uses'])->getClosure();
-        }
-
-        if ($action['uses'] instanceof Closure) {
-            return new ReflectionFunction($action['uses']);
-        }
-
-        if (!is_string($action['uses'])) {
-            return null;
-        }
-
-        $routeData = explode('@', $action['uses']);
-        if (2 !== count($routeData)) {
-            return null;
-        }
-
-        $reflection = new ReflectionClass($routeData[0]);
-        if (!$reflection->hasMethod($routeData[1])) {
-            return null;
-        }
-
-        return $reflection->getMethod($routeData[1]);
-    }
-
-    private function containsSerializedClosure(array $action): bool
-    {
-        if (!is_string($action['uses'])) {
-            return false;
-        }
-
-        $needles = [
-            'C:32:"Opis\\Closure\\SerializableClosure',
-            'O:47:"Laravel\\SerializableClosure\\SerializableClosure',
-            'O:55:"Laravel\\SerializableClosure\\UnsignedSerializableClosure',
-        ];
-
-        return Str::startsWith($action['uses'], $needles);
     }
 }

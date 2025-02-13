@@ -2,9 +2,9 @@
 
 namespace Ninja\Cartographer\Collections;
 
+use Illuminate\Support\Collection;
 use Ninja\Cartographer\DTO\Request;
 use Ninja\Cartographer\Enums\Method;
-use Illuminate\Support\Collection;
 
 final class RequestCollection extends Collection
 {
@@ -19,14 +19,14 @@ final class RequestCollection extends Collection
 
         /** @var Request $request */
         foreach ($this as $request) {
-            if ($request->method === Method::HEAD) {
+            if (Method::HEAD === $request->method) {
                 continue;
             }
 
             $path = $request->getNestedPath();
 
             if (empty($path)) {
-                if (!isset($grouped['Default'])) {
+                if ( ! isset($grouped['Default'])) {
                     $grouped['Default'] = ['requests' => [], 'children' => []];
                 }
                 $grouped['Default']['requests'][] = $request;
@@ -37,18 +37,19 @@ final class RequestCollection extends Collection
 
             for ($i = 0; $i < count($path) - 1; $i++) {
                 $segment = $path[$i];
-                if (!isset($current[$segment])) {
+                if ( ! isset($current[$segment])) {
                     $current[$segment] = ['requests' => [], 'children' => []];
                 }
                 $current = &$current[$segment]['children'];
             }
 
             $lastSegment = end($path);
-            if (!isset($current[$lastSegment])) {
+            if ( ! isset($current[$lastSegment])) {
                 $current[$lastSegment] = ['requests' => [], 'children' => []];
             }
             $current[$lastSegment]['requests'][] = $request;
         }
 
         return $grouped;
-    }}
+    }
+}

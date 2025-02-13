@@ -11,14 +11,14 @@ final class AuthenticationProcessor
     private ?AuthenticationStrategy $strategy = null;
 
     public function __construct(
-        private readonly Repository $config
+        private readonly Repository $config,
     ) {
         $this->resolveStrategy();
     }
 
     public function processRouteAuthentication(array $middlewares): ?array
     {
-        if (!$this->shouldAuthenticate($middlewares)) {
+        if ( ! $this->shouldAuthenticate($middlewares)) {
             return null;
         }
 
@@ -40,11 +40,11 @@ final class AuthenticationProcessor
     {
         $config = $this->config->get('cartographer.authentication');
 
-        if (!empty($config['method'])) {
+        if ( ! empty($config['method'])) {
             $this->strategy = AuthStrategyFactory::create(
                 type: $config['method'],
                 token: $config['token'] ?? null,
-                options: $config['options'] ?? []
+                options: $config['options'] ?? [],
             );
         }
     }

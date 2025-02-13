@@ -2,10 +2,10 @@
 
 namespace Ninja\Cartographer\DTO;
 
+use JsonSerializable;
 use Ninja\Cartographer\Collections\ParameterCollection;
 use Ninja\Cartographer\Enums\BodyMode;
 use Ninja\Cartographer\Services\BodyContentHandler;
-use JsonSerializable;
 
 final readonly class Body implements JsonSerializable
 {
@@ -13,7 +13,7 @@ final readonly class Body implements JsonSerializable
         public BodyMode $mode = BodyMode::Raw,
         public mixed $content = null,
         public ?array $options = null,
-        public bool $disabled = false
+        public bool $disabled = false,
     ) {}
 
     public static function from(string|array|self $data): self
@@ -37,7 +37,7 @@ final readonly class Body implements JsonSerializable
     public static function fromParameters(
         ParameterCollection $parameters,
         ?array $formdata = [],
-        ?BodyMode $mode = null
+        ?BodyMode $mode = null,
     ): self {
         $contentHandler = app(BodyContentHandler::class);
         $bodyMode = $mode ?? BodyMode::Raw;
@@ -45,13 +45,13 @@ final readonly class Body implements JsonSerializable
         return new self(
             mode: $bodyMode,
             content: $contentHandler->prepareContent($parameters, $bodyMode, $formdata),
-            options: $contentHandler->getBodyOptions($bodyMode)
+            options: $contentHandler->getBodyOptions($bodyMode),
         );
     }
 
     public function forPostman(): ?array
     {
-        if ($this->mode === BodyMode::None) {
+        if (BodyMode::None === $this->mode) {
             return null;
         }
 
@@ -65,7 +65,7 @@ final readonly class Body implements JsonSerializable
 
     public function forInsomnia(): ?array
     {
-        if ($this->mode === BodyMode::None) {
+        if (BodyMode::None === $this->mode) {
             return null;
         }
 
@@ -73,51 +73,6 @@ final readonly class Body implements JsonSerializable
             'mimeType' => $this->getMimeType(),
             'text' => $this->formatContentForInsomnia(),
         ];
-    }
-
-    private function formatContentForPostman(): mixed
-    {
-        return match($this->mode) {
-            BodyMode::Raw => is_string($this->content)
-                ? $this->content
-                : json_encode($this->content, JSON_PRETTY_PRINT),
-            default => $this->content
-        };
-    }
-
-    private function formatContentForInsomnia(): string
-    {
-        return match($this->mode) {
-            BodyMode::Raw => is_string($this->content)
-                ? $this->content
-                : json_encode($this->content, JSON_PRETTY_PRINT),
-            BodyMode::UrlEncoded => http_build_query($this->content),
-            BodyMode::FormData => $this->formatFormDataForInsomnia(),
-            default => ''
-        };
-    }
-
-    private function formatFormDataForInsomnia(): string
-    {
-        if (!is_array($this->content)) {
-            return '';
-        }
-
-        $parts = [];
-        foreach ($this->content as $key => $value) {
-            $parts[] = sprintf('--%s', uniqid());
-            $parts[] = sprintf('Content-Disposition: form-data; name="%s"', $key);
-            $parts[] = '';
-            $parts[] = is_array($value) ? json_encode($value) : (string)$value;
-        }
-        $parts[] = sprintf('--%s--', uniqid());
-
-        return implode("\n", $parts);
-    }
-
-    private function getMimeType(): string
-    {
-        return $this->mode->mimeType() ?? 'application/json';
     }
 
     public function jsonSerialize(): array
@@ -129,5 +84,50 @@ final readonly class Body implements JsonSerializable
             'options' => $this->options,
             'disabled' => $this->disabled,
         ];
+    }
+
+    private function formatContentForPostman(): mixed
+    {
+        return match ($this->mode) {
+            BodyMode::Raw => is_string($this->content)
+                ? $this->content
+                : json_encode($this->content, JSON_PRETTY_PRINT),
+            default => $this->content,
+        };
+    }
+
+    private function formatContentForInsomnia(): string
+    {
+        return match ($this->mode) {
+            BodyMode::Raw => is_string($this->content)
+                ? $this->content
+                : json_encode($this->content, JSON_PRETTY_PRINT),
+            BodyMode::UrlEncoded => http_build_query($this->content),
+            BodyMode::FormData => $this->formatFormDataForInsomnia(),
+            default => '',
+        };
+    }
+
+    private function formatFormDataForInsomnia(): string
+    {
+        if ( ! is_array($this->content)) {
+            return '';
+        }
+
+        $parts = [];
+        foreach ($this->content as $key => $value) {
+            $parts[] = sprintf('--%s', uniqid());
+            $parts[] = sprintf('Content-Disposition: form-data; name="%s"', $key);
+            $parts[] = '';
+            $parts[] = is_array($value) ? json_encode($value) : (string) $value;
+        }
+        $parts[] = sprintf('--%s--', uniqid());
+
+        return implode("\n", $parts);
+    }
+
+    private function getMimeType(): string
+    {
+        return $this->mode->mimeType() ?? 'application/json';
     }
 }

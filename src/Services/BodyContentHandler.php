@@ -11,31 +11,31 @@ use stdClass;
 final readonly class BodyContentHandler
 {
     public function __construct(
-        private RuleFormatter $ruleFormatter
+        private RuleFormatter $ruleFormatter,
     ) {}
 
     public function prepareContent(
         ParameterCollection $parameters,
         BodyMode $mode,
-        ?array $formdata = []
+        ?array $formdata = [],
     ): array {
-        return match($mode) {
+        return match ($mode) {
             BodyMode::Raw => $this->prepareRawContent($parameters, $formdata),
             BodyMode::UrlEncoded,
             BodyMode::FormData => $this->prepareParameterBasedContent($parameters, $formdata),
-            default => []
+            default => [],
         };
     }
 
     public function getBodyOptions(BodyMode $mode): ?array
     {
-        return match($mode) {
+        return match ($mode) {
             BodyMode::Raw => [
                 'raw' => [
-                    'language' => 'json'
-                ]
+                    'language' => 'json',
+                ],
             ],
-            default => null
+            default => null,
         };
     }
 
@@ -53,27 +53,25 @@ final readonly class BodyContentHandler
 
     private function prepareParameterBasedContent(ParameterCollection $parameters, array $formdata): array
     {
-        return $parameters->map(function(Parameter $param) use ($formdata) {
-            return [
-                'key' => $param->name,
-                'value' => $formdata[$param->name] ?? '',
-                'type' => 'text',
-                'description' => $this->ruleFormatter->format($param->name, $param->rules),
-            ];
-        })->values()->all();
+        return $parameters->map(fn(Parameter $param) => [
+            'key' => $param->name,
+            'value' => $formdata[$param->name] ?? '',
+            'type' => 'text',
+            'description' => $this->ruleFormatter->format($param->name, $param->rules),
+        ])->values()->all();
     }
 
     private function getDefaultValueForType(string $description): mixed
     {
-        $description = strtolower($description);
+        $description = mb_strtolower($description);
 
-        return match(true) {
+        return match (true) {
             str_contains($description, 'integer') => 0,
             str_contains($description, 'number') => 0.0,
             str_contains($description, 'boolean') => false,
             str_contains($description, 'array') => [],
             str_contains($description, 'object') => new stdClass(),
-            default => ""
+            default => "",
         };
     }
 
@@ -84,7 +82,7 @@ final readonly class BodyContentHandler
             $current = &$array;
 
             foreach ($keys as $nestedKey) {
-                if (!isset($current[$nestedKey])) {
+                if ( ! isset($current[$nestedKey])) {
                     $current[$nestedKey] = [];
                 }
                 $current = &$current[$nestedKey];

@@ -6,7 +6,7 @@ final readonly class ApiKeyStrategy extends AbstractAuthStrategy
 {
     public function __construct(
         protected ?string $token = null,
-        protected string  $prefix = 'ApiKey'
+        protected string  $prefix = 'ApiKey',
     ) {
         parent::__construct($token);
     }
