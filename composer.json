@@ -1,11 +1,10 @@
 {
     "name": "diego-ninja/cartographer",
-    "description": "Generate an api collections automatically from your Laravel API",
+    "description": "Generate an api collection automatically from your Laravel API",
     "keywords": [
         "laravel",
         "postman",
         "insomnia",
-        "bruno",
         "api",
         "collection",
         "generate"
@@ -52,9 +51,13 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "require-dev": {
+        "barryvdh/laravel-ide-helper": "^3.1",
         "orchestra/testbench": "^9.0",
         "laravel/pint": "^1.20",
-        "pestphp/pest": "^3.7"
+        "larastan/larastan": "^3.0",
+        "pestphp/pest": "^3.7",
+        "phpstan/phpstan": "^2",
+        "phpstan/phpstan-deprecation-rules": "^2"
     },
     "config": {
         "allow-plugins": {
