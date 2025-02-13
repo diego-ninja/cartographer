@@ -4,7 +4,7 @@
 
 If you discover any security-related issues within our package, we take these matters seriously and encourage you to report them to us promptly. Your assistance in disclosing potential security vulnerabilities is highly appreciated.
 
-To report a security issue, please email us at [cosmic@diego.ninja](mailto:cosmic@diego.ninja). We request that you do not use public issue trackers or other public communication channels to report security concerns related to this package. This helps us maintain the confidentiality and integrity of the issue while we investigate and address it.
+To report a security issue, please email us at [yosoy@diego.ninja](mailto:yosoy@diego.ninja). We request that you do not use public issue trackers or other public communication channels to report security concerns related to this package. This helps us maintain the confidentiality and integrity of the issue while we investigate and address it.
 
 ## Responsible Disclosure
 
