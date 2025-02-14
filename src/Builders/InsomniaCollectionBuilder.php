@@ -3,6 +3,7 @@
 namespace Ninja\Cartographer\Builders;
 
 use Illuminate\Support\Str;
+use Ninja\Cartographer\DTO\RequestGroup;
 use Ninja\Cartographer\Exceptions\ExportException;
 use Ninja\Cartographer\Exceptions\ValidationException;
 use Ramsey\Uuid\UuidInterface;
@@ -51,8 +52,9 @@ final class InsomniaCollectionBuilder extends AbstractCollectionBuilder
     private function processGroups(): array
     {
         $resources = [];
+        /** @var RequestGroup $group */
         foreach ($this->groups->flatten() as $group) {
-            $resources = array_merge($resources, $group->forInsomnia());
+            $resources = array_merge($resources, $group->forInsomnia($this->workspaceId));
         }
         return $resources;
     }

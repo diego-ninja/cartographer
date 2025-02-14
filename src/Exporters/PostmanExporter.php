@@ -29,7 +29,7 @@ final class PostmanExporter extends AbstractExporter
             )
             ->when(
                 $this->authProcessor->getStrategy(),
-                fn($builder) => $builder->setAuthentication(
+                fn(PostmanCollectionBuilder $builder) => $builder->setAuthentication(
                     $this->authProcessor->getStrategy()->toPostmanFormat(),
                 ),
             )

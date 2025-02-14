@@ -6,12 +6,14 @@ use JsonSerializable;
 use Ninja\Cartographer\Collections\HeaderCollection;
 use Ninja\Cartographer\Collections\ParameterCollection;
 use Ninja\Cartographer\Collections\ScriptCollection;
+use Ninja\Cartographer\Contracts\Exportable;
 use Ninja\Cartographer\Enums\EventType;
 use Ninja\Cartographer\Enums\Method;
+use Ninja\Cartographer\Processors\ParameterProcessor;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
 
-final readonly class Request implements JsonSerializable
+final readonly class Request implements JsonSerializable, Exportable
 {
     public function __construct(
         public UuidInterface $id,
@@ -19,36 +21,34 @@ final readonly class Request implements JsonSerializable
         public Method $method,
         public string $uri,
         public string $description,
-        public HeaderCollection $headers,
-        public ParameterCollection $parameters,
+        public ParameterProcessor $parameters,
         public Url $url,
         public ?array $authentication,
-        public ?Body $body,
         public ScriptCollection $scripts,
-        public ?array $responses = null,
         public ?string $group = null,
     ) {}
 
-    public static function from(string|array $data): Request
+    public static function from(string|array|self $data): self
     {
+        if ($data instanceof self) {
+            return $data;
+        }
+
         if (is_string($data)) {
             return self::from(json_decode($data, true));
         }
 
         return new self(
-            id: Uuid::fromString($data['id']),
+            id: isset($data['id']) ? Uuid::fromString($data['id']) : Uuid::uuid4(),
             name: $data['name'],
             method: Method::from($data['method']),
             uri: $data['uri'],
-            description: $data['description'] ?? null,
-            headers: HeaderCollection::from($data['headers'] ?? []),
-            parameters: ParameterCollection::from($data['parameters'] ?? []),
-            url: Url::from($data['url']),
+            description: $data['description'] ?? '',
+            parameters: ParameterProcessor::from($data['parameters'] ?? []),
+            url: isset($data['url']) ? Url::from($data['url']) : new Url('', [], []),
             authentication: $data['authentication'] ?? null,
-            body: isset($data['body']) ? Body::from($data['body']) : null,
-            scripts: ScriptCollection::from($data['scripts'] ?? []),
-            responses: $data['responses'] ?? null,
-            group: $data['group'] ?? null,
+            scripts: isset($data['scripts']) ? ScriptCollection::from($data['scripts']) : null,
+            group: $data['group'] ?? null
         );
     }
 
@@ -56,63 +56,54 @@ final readonly class Request implements JsonSerializable
     {
         $request = [
             'name' => $this->name,
-            'request' => [
+            'request' => array_filter([
                 'method' => $this->method->value,
-                'url' => $this->url->array(),
                 'description' => $this->description,
-            ],
+                'url' => $this->url->array(),
+                'auth' => $this->authentication,
+                ...$this->parameters->forPostman()
+            ])
         ];
 
-        if ( ! $this->headers->isEmpty()) {
-            $request['request']['header'] = $this->headers->formatted();
+        if ($this->scripts && !$this->scripts->isEmpty()) {
+            $request['event'] = $this->scripts->forPostman();
         }
 
         if ($this->authentication) {
             $request['request']['auth'] = $this->authentication;
         }
 
-        if ($this->body) {
-            $request['request']['body'] = $this->body->forPostman();
-        }
-
-        if ( ! $this->scripts->isEmpty()) {
-            $request['event'] = $this->scripts->map(fn(Script $script) => $script->forPostman());
-        }
-
         return $request;
     }
 
-    public function forInsomnia(string $parentId): array
+    public function forInsomnia(): array
     {
-        $request = [
-            '_id' => 'req_' . $this->id->toString(),
+        $base = [
             '_type' => 'request',
-            'parentId' => $parentId,
             'name' => $this->name,
             'description' => $this->description,
             'method' => $this->method->value,
-            'url' => sprintf('{{ base_url }}/%s', $this->url->forInsomnia()),
+            'url' => $this->url->forInsomnia(),
         ];
 
-        if ( ! $this->headers->isEmpty()) {
-            $request['headers'] = $this->headers->formatted();
-        }
+        $parameters = $this->parameters->forInsomnia();
 
         if ($this->authentication) {
-            $request['authentication'] = $this->authentication;
+            $base['authentication'] = $this->authentication;
         }
 
-        if ($this->body) {
-            $request['body'] = $this->body->forInsomnia();
+        if ($this->scripts && !$this->scripts->isEmpty()) {
+            if ($preRequest = $this->scripts->findByType(EventType::PreRequest)) {
+                $base['preRequestScript'] = $preRequest->forInsomnia();
+            }
+            if ($afterResponse = $this->scripts->findByType(EventType::AfterResponse)) {
+                $base['afterResponseScript'] = $afterResponse->forInsomnia();
+            }
         }
 
-        if ( ! $this->scripts->isEmpty()) {
-            $request['preRequestScript'] = $this->scripts->findByType(EventType::PreRequest)->forInsomnia();
-            $request['afterResponseScript'] = $this->scripts->findByType(EventType::AfterResponse)->forInsomnia();
-        }
-
-        return $request;
+        return array_filter(array_merge($base, $parameters));
     }
+
     public function group(): string
     {
         if (Method::HEAD === $this->method) {
@@ -145,23 +136,18 @@ final readonly class Request implements JsonSerializable
 
     public function array(): array
     {
-        $data = [
+        return array_filter([
             'id' => $this->id->toString(),
             'name' => $this->name,
             'method' => $this->method->value,
             'uri' => $this->uri,
             'description' => $this->description,
-            'headers' => $this->headers->toArray(),
-            'parameters' => $this->parameters->toArray(),
-            'url' => $this->url->array(),
+            'parameters' => $this->parameters,
+            'url' => $this->url,
             'authentication' => $this->authentication,
-            'body' => $this->body,
-            'scripts' => $this->scripts->toArray(),
-            'responses' => $this->responses,
+            'scripts' => $this->scripts?->toArray(),
             'group' => $this->group,
-        ];
-
-        return array_filter($data, fn($value) => null !== $value);
+        ]);
     }
 
     public function json(): string
@@ -172,5 +158,25 @@ final readonly class Request implements JsonSerializable
     public function jsonSerialize(): array
     {
         return $this->array();
+    }
+
+    public function hasBodyContent(): bool
+    {
+        return in_array($this->method, [
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE
+        ]);
+    }
+
+    public function requiresAuthentication(): bool
+    {
+        return $this->authentication !== null;
+    }
+
+    public function hasScripts(): bool
+    {
+        return $this->scripts !== null && !$this->scripts->isEmpty();
     }
 }

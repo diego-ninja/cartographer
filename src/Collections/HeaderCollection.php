@@ -4,7 +4,7 @@ namespace Ninja\Cartographer\Collections;
 
 use Illuminate\Support\Collection;
 use Ninja\Cartographer\DTO\Header;
-use Ninja\Cartographer\Enums\ParameterType;
+use Ninja\Cartographer\Enums\ParameterLocation;
 
 final class HeaderCollection extends Collection
 {
@@ -18,10 +18,10 @@ final class HeaderCollection extends Collection
 
     public function formatted(): array
     {
-        return $this->map(fn(Header $header) => [
+        return $this->unique('key')->map(fn(Header $header) => [
             'key' => $header->key,
             'value' => $header->value,
-            'type' => ParameterType::TEXT,
+            'type' => ParameterLocation::Text,
         ])->all();
     }
 }

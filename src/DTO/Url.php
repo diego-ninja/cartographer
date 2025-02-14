@@ -5,9 +5,9 @@ namespace Ninja\Cartographer\DTO;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Str;
 use JsonSerializable;
-use Ninja\Cartographer\Collections\ParameterCollection;
 use Ninja\Cartographer\Enums\Method;
-use Ninja\Cartographer\Formatters\RuleFormatter;
+use Ninja\Cartographer\Enums\ParameterLocation;
+use Ninja\Cartographer\Processors\ParameterProcessor;
 
 final readonly class Url implements JsonSerializable
 {
@@ -19,9 +19,12 @@ final readonly class Url implements JsonSerializable
         public array $query = [],
     ) {}
 
-    public static function fromRoute(Route $route, Method $method, ParameterCollection $formParameters): Url
-    {
-        $uri  = Str::of($route->uri())->replaceMatches('/{([[:alnum:]_]+)}/', ':$1');
+    public static function fromRoute(
+        Route $route,
+        Method $method,
+        ParameterProcessor $parameters
+    ): self {
+        $uri = Str::of($route->uri())->replaceMatches('/{([[:alnum:]_]+)}/', ':$1');
 
         $data = [
             'raw' => '{{base_url}}/' . $uri,
@@ -29,30 +32,35 @@ final readonly class Url implements JsonSerializable
             'path' => explode('/', mb_trim($uri, '/')),
         ];
 
-        $pathVariables = [];
-        preg_match_all('/\{([^}]+)}/', $route->uri(), $matches);
-        if ( ! empty($matches[1])) {
-            $pathVariables = array_map(fn($param) => [
-                'key' => $param,
-                'value' => '',
-            ], $matches[1]);
-        }
-
-        $data['variable'] = $pathVariables;
-
-        if (Method::GET === $method && ! $formParameters->isEmpty()) {
-            $data['query'] = $formParameters->map(fn(Parameter $param) => [
+        $pathParameters = $parameters->getParametersByLocation(ParameterLocation::Path)
+            ->map(fn($param) => [
                 'key' => $param->name,
                 'value' => $param->value ?? '',
-                'description' => app(RuleFormatter::class)->format($param->name, $param->rules),
-                'disabled' => false,
-            ])->values()->all();
+                'description' => $param->description
+            ])
+            ->values()
+            ->all();
+
+        $data['variable'] = $pathParameters;
+
+        if ($method === Method::GET) {
+            $queryParameters = $parameters->getParametersByLocation(ParameterLocation::Query)
+                ->map(fn($param) => [
+                    'key' => $param->name,
+                    'value' => $param->value ?? '',
+                    'description' => $param->description,
+                    'disabled' => false
+                ])
+                ->values()
+                ->all();
+
+            $data['query'] = $queryParameters;
         }
 
         return self::from($data);
     }
 
-    public static function from(string|array $data): Url
+    public static function from(string|array $data): self
     {
         if (is_string($data)) {
             return self::from(json_decode($data, true));
@@ -82,7 +90,7 @@ final readonly class Url implements JsonSerializable
     {
         $url = preg_replace('#/+#', '/', mb_trim($this->raw, '/'));
 
-        if ( ! empty($this->query)) {
+        if (!empty($this->query)) {
             $queryString = http_build_query(
                 array_combine(
                     array_column($this->query, 'key'),

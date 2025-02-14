@@ -2,30 +2,59 @@
 
 namespace Ninja\Cartographer\Tests;
 
-use Ninja\Cartographer\Tests\Fixtures\AuditLogController;
-use Ninja\Cartographer\Tests\Fixtures\ExampleController;
+use Ninja\Cartographer\Enums\StructureMode;
+use Orchestra\Testbench\TestCase as Orchestra;
+use Random\RandomException;
 
-class TestCase extends \Orchestra\Testbench\TestCase
+class TestCase extends Orchestra
 {
-    protected function getPackageProviders($app): array
+    protected function setUp(): void
     {
-        return ['Ninja\Cartographer\CartographerServiceProvider'];
+        parent::setUp();
+
+        $this->app['config']->set('cartographer', [
+            'base_url' => 'http://api.test',
+            'name' => 'Test API Collection',
+            'filename' => 'test.json',
+            'auth_middleware' => 'auth:api',
+            'include_middleware' => ['api'],
+            'structured' => true,
+            'structured_by' => StructureMode::Path,
+            'body_mode' => 'raw',
+            'enable_formdata' => true,
+            'disk' => 'local',
+            'headers' => [
+                ['key' => 'Accept', 'value' => 'application/json'],
+                ['key' => 'Content-Type', 'value' => 'application/json'],
+            ],
+        ]);
+
+        $this->ensureStorageDirectoriesExist();
     }
 
-    protected function defineRoutes($router): void
+    protected function ensureStorageDirectoriesExist(): void
     {
-        $router->middleware('api')->prefix('example')->name('example.')->group(function ($router): void {
-            $router->get('index', [ExampleController::class, 'index'])->name('index');
-            $router->get('show', [ExampleController::class, 'show'])->name('show');
-            $router->post('store', [ExampleController::class, 'store'])->name('store');
-            $router->delete('delete', [ExampleController::class, 'delete'])->name('delete');
-            $router->get('showWithReflectionMethod', [ExampleController::class, 'showWithReflectionMethod'])->name('show-with-reflection-method');
-            $router->post('storeWithFormRequest', [ExampleController::class, 'storeWithFormRequest'])->name('store-with-form-request');
-            $router->get('getWithFormRequest', [ExampleController::class, 'getWithFormRequest'])->name('get-with-form-request');
-            $router->get('phpDocRoute', [ExampleController::class, 'phpDocRoute'])->name('php-doc-route');
-            $router->apiResource('users.audit-logs', AuditLogController::class);
-            $router->apiResource('users.other_logs', AuditLogController::class);
-            $router->apiResource('users.someLogs', AuditLogController::class);
-        });
+        $directories = ['postman', 'insomnia'];
+        foreach ($directories as $dir) {
+            $path = storage_path("app/$dir");
+            if (!file_exists($path)) {
+                mkdir($path, 0777, true);
+            }
+        }
+    }
+
+    protected function getPackageProviders($app): array
+    {
+        return [
+            'Ninja\Cartographer\CartographerServiceProvider',
+        ];
+    }
+
+    /**
+     * @throws RandomException
+     */
+    protected function defineEnvironment($app): void
+    {
+        $app['config']->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
     }
 }

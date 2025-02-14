@@ -3,7 +3,7 @@
 namespace Ninja\Cartographer\Services;
 
 use Ninja\Cartographer\Collections\ParameterCollection;
-use Ninja\Cartographer\DTO\Parameter;
+use Ninja\Cartographer\DTO\Parameters\Parameter;
 use Ninja\Cartographer\Enums\BodyMode;
 use Ninja\Cartographer\Formatters\RuleFormatter;
 use stdClass;

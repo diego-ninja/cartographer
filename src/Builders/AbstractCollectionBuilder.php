@@ -12,6 +12,9 @@ abstract class AbstractCollectionBuilder
     protected array $structure = [];
     protected array $variables = [];
 
+    protected ?array $auth = null;
+    protected ?array $events = null;
+
     public function __construct(
         protected readonly Repository $config,
         protected readonly AuthenticationProcessor $authProcessor,
@@ -19,7 +22,6 @@ abstract class AbstractCollectionBuilder
     ) {}
 
     abstract public function build(): array;
-
     abstract protected function generateInfo(string $name, string $description, UuidInterface $id): array;
 
     public function addBasicInfo(string $name, string $description, UuidInterface $id): self
@@ -45,6 +47,21 @@ abstract class AbstractCollectionBuilder
             $callback($this);
         }
 
+        return $this;
+    }
+
+    public function unless(mixed $value, callable $callback): self
+    {
+        if (!$value) {
+            $callback($this);
+        }
+
+        return $this;
+    }
+
+    public function setAuthentication(array $auth): self
+    {
+        $this->auth = $auth;
         return $this;
     }
 }

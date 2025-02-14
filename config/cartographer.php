@@ -47,7 +47,7 @@ return [
     */
 
     'structured' => false,
-    'structured_by' => 'path', // @requires: 'structured' ===  true, valid options: 'path', 'name'
+    'structured_by' => Ninja\Cartographer\Enums\StructureMode::Path, // @requires: 'structured' ===  true, valid options: 'path', 'route'
 
     /*
     |--------------------------------------------------------------------------
@@ -231,6 +231,8 @@ return [
         'disable_body_pruning' => false,
         'follow_redirects' => true,
         'strict_ssl' => true,
+        'enable_cookies' => true,
+        'max_redirects' => 10,
     ],
 
 ];

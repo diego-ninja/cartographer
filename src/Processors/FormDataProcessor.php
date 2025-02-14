@@ -5,8 +5,8 @@ namespace Ninja\Cartographer\Processors;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Routing\Route;
 use Ninja\Cartographer\Collections\ParameterCollection;
-use Ninja\Cartographer\DTO\Parameter;
-use Ninja\Cartographer\Enums\ParameterType;
+use Ninja\Cartographer\DTO\Parameters\Parameter;
+use Ninja\Cartographer\Enums\ParameterLocation;
 use Ninja\Cartographer\Support\RouteReflector;
 use ReflectionException;
 use ReflectionParameter;
@@ -43,7 +43,7 @@ final readonly class FormDataProcessor
                     value: $formdata[$fieldName] ?? '',
                     description: '',
                     rules: $rule,
-                    type: ParameterType::QUERY,
+                    type: ParameterLocation::Query,
                 ));
 
                 if (is_array($rule) && in_array('confirmed', $rule)) {
@@ -53,7 +53,7 @@ final readonly class FormDataProcessor
                         value: $formdata[$confirmationField] ?? '',
                         description: '',
                         rules: $rule,
-                        type: ParameterType::QUERY,
+                        type: ParameterLocation::Query,
                     ));
                 }
             }

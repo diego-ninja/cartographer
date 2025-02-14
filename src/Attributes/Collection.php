@@ -3,7 +3,9 @@
 namespace Ninja\Cartographer\Attributes;
 
 use Attribute;
+use Ninja\Cartographer\Collections\HeaderCollection;
 use Ninja\Cartographer\Collections\ScriptCollection;
+use Ninja\Cartographer\DTO\Header;
 use Ninja\Cartographer\DTO\Script;
 use Ninja\Cartographer\Enums\EventType;
 
@@ -31,6 +33,23 @@ final readonly class Collection
         }
 
         return $scripts;
+    }
+
+    public function headers(): HeaderCollection
+    {
+        $headers = new HeaderCollection();
+        if ($this->headers) {
+            foreach ($this->headers as $header => $value) {
+                $headers->add(new Header(key: $header, value: $value));
+            }
+        }
+
+        return $headers;
+    }
+
+    public function description(): string
+    {
+        return $this->description ?? sprintf('Endpoint collection for %s', $this->name);
     }
 
 }

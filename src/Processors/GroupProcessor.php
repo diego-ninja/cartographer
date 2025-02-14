@@ -8,6 +8,7 @@ use Ninja\Cartographer\Collections\RequestCollection;
 use Ninja\Cartographer\Collections\RequestGroupCollection;
 use Ninja\Cartographer\DTO\Request;
 use Ninja\Cartographer\DTO\RequestGroup;
+use Ninja\Cartographer\Enums\StructureMode;
 
 final class GroupProcessor
 {
@@ -20,29 +21,48 @@ final class GroupProcessor
     public function processRequests(RequestCollection $requests): RequestGroupCollection
     {
         $collection = new RequestGroupCollection();
+        $orphans = new RequestCollection();
 
         foreach ($requests as $request) {
-            if (null !== $request->group) {
-                $group = $this->getOrCreateGroup($request->group);
-                $group->requests->add($request);
-                if ( ! $collection->contains($group)) {
-                    $collection->add($group);
+            if (!$this->config->get('cartographer.structured')) {
+                $orphans->add($request);
+            } else {
+                if (null !== $request->group) {
+                    $group = $this->getOrCreateGroup($request->group);
+                    $group->requests->add($request);
+                    if ( ! $collection->contains($group)) {
+                        $collection->add($group);
+                    }
+                } else {
+                    if ($this->config->get('cartographer.structured', false)) {
+                        $structuredBy = $this->config->get('cartographer.structured_by', StructureMode::Path);
+                        $segments = $this->getSegments($request, $structuredBy);
+
+                        $this->processRequestWithSegments($request, $segments, $collection);
+                    } else {
+                        $orphans->add($request);
+                    }
                 }
-                continue;
             }
+        }
 
-            $structuredBy = $this->config->get('cartographer.structured_by', 'route_path');
-            $segments = $this->getSegments($request, $structuredBy);
+        if ($orphans->isNotEmpty()) {
+            $defaultGroup = new RequestGroup(
+                id: Str::uuid(),
+                name: $this->config->get('cartographer.name', 'Cartographer Collection'),
+                description: 'Default endpoints group'
+            );
 
-            $this->processRequestWithSegments($request, $segments, $collection);
+            $orphans->each(fn(Request $orphan) => $defaultGroup->addRequest($orphan));
+            $collection->add($defaultGroup);
         }
 
         return $collection;
     }
 
-    private function getSegments(Request $request, string $structuredBy): array
+    private function getSegments(Request $request, StructureMode $structuredBy): array
     {
-        if ('route_name' === $structuredBy && $request->name) {
+        if (StructureMode::Route === $structuredBy && $request->name) {
             return array_filter(preg_split('/[.:]++/', $request->name));
         }
 
@@ -57,12 +77,12 @@ final class GroupProcessor
         array $segments,
         RequestGroupCollection $collection,
     ): void {
-        if (empty($segments) || ($this->shouldBeRoot($segments, $request))) {
+        if (empty($segments) || ($this->shouldBeRoot($segments))) {
             $collection->add($request);
             return;
         }
 
-        $groupSegments = $this->getGroupSegments($segments, $request);
+        $groupSegments = $this->getGroupSegments($segments);
         $currentGroup = $this->buildGroupHierarchy($groupSegments, $collection);
 
         if ($currentGroup) {
@@ -74,8 +94,8 @@ final class GroupProcessor
 
     private function shouldBeRoot(array $segments): bool
     {
-        $structuredBy = $this->config->get('cartographer.structured_by', 'route_path');
-        return 'route_path' === $structuredBy && 1 === count($segments);
+        $structuredBy = $this->config->get('cartographer.structured_by', StructureMode::Path);
+        return StructureMode::Path === $structuredBy && 1 === count($segments);
     }
 
     private function getGroupSegments(array $segments): array

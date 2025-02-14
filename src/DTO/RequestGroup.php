@@ -196,7 +196,7 @@ final readonly class RequestGroup implements JsonSerializable
         return $item;
     }
 
-    public function forInsomnia(): array
+    public function forInsomnia(string $workspaceId): array
     {
         $resources = [];
 
@@ -204,7 +204,7 @@ final readonly class RequestGroup implements JsonSerializable
         $resources[] = [
             '_id' => 'fld_' . $this->id->toString(),
             '_type' => 'request_group',
-            'parentId' => $this->parent?->getId()->toString() ?? 'wrk_default',
+            'parentId' => $this->parent?->getId()->toString() ?? $workspaceId,
             'name' => $this->name,
             'description' => $this->description,
             'environment' => [],
