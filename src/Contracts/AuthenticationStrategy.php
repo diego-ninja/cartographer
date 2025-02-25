@@ -24,10 +24,10 @@ interface AuthenticationStrategy extends Arrayable
     /**
      * Convert the strategy into a Postman compatible array
      */
-    public function toPostmanFormat(): array;
+    public function forPostman(): array;
 
     /**
      * Convert the strategy into an Insomnia compatible array
      */
-    public function toInsomniaFormat(): array;
+    public function forInsomnia(): array;
 }

@@ -1,0 +1,324 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "id": "https://schema.insomnia.rest/export/v4.0.0/",
+    "type": "object",
+    "title": "Insomnia Export Format v4",
+    "description": "Schema for Insomnia v4 export files",
+    "required": ["_type", "__export_format", "__export_date", "__export_source", "resources"],
+    "properties": {
+        "_type": {
+            "type": "string",
+            "enum": ["export"],
+            "description": "Indicates this is an export file"
+        },
+        "__export_format": {
+            "type": "integer",
+            "enum": [4],
+            "description": "The version of the export format"
+        },
+        "__export_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this export was generated"
+        },
+        "__export_source": {
+            "type": "string",
+            "description": "The source application that created this export"
+        },
+        "resources": {
+            "type": "array",
+            "description": "Array of resources that make up the Insomnia workspace",
+            "items": {
+                "$ref": "#/definitions/resource"
+            }
+        }
+    },
+    "definitions": {
+        "resource": {
+            "type": "object",
+            "required": ["_type", "_id", "parentId", "modified", "created"],
+            "properties": {
+                "_type": {
+                    "type": "string",
+                    "enum": ["request", "request_group", "workspace", "environment", "cookie_jar"],
+                    "description": "The type of resource"
+                },
+                "_id": {
+                    "type": "string",
+                    "description": "Unique identifier for the resource"
+                },
+                "parentId": {
+                    "type": ["string", "null"],
+                    "description": "ID of the parent resource"
+                },
+                "modified": {
+                    "type": "number",
+                    "description": "Last modification timestamp"
+                },
+                "created": {
+                    "type": "number",
+                    "description": "Creation timestamp"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Human readable name for the resource"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Detailed description of the resource"
+                }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": { "_type": { "const": "request" } }
+                    },
+                    "then": {
+                        "$ref": "#/definitions/request"
+                    }
+                },
+                {
+                    "if": {
+                        "properties": { "_type": { "const": "request_group" } }
+                    },
+                    "then": {
+                        "$ref": "#/definitions/request-group"
+                    }
+                },
+                {
+                    "if": {
+                        "properties": { "_type": { "const": "workspace" } }
+                    },
+                    "then": {
+                        "$ref": "#/definitions/workspace"
+                    }
+                },
+                {
+                    "if": {
+                        "properties": { "_type": { "const": "environment" } }
+                    },
+                    "then": {
+                        "$ref": "#/definitions/environment"
+                    }
+                },
+                {
+                    "if": {
+                        "properties": { "_type": { "const": "cookie_jar" } }
+                    },
+                    "then": {
+                        "$ref": "#/definitions/cookie-jar"
+                    }
+                }
+            ]
+        },
+        "request": {
+            "type": "object",
+            "description": "An HTTP request",
+            "required": ["url", "method"],
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "Request URL"
+                },
+                "method": {
+                    "type": "string",
+                    "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+                    "description": "HTTP method"
+                },
+                "body": {
+                    "type": "object",
+                    "description": "Request body configuration",
+                    "properties": {
+                        "mimeType": {
+                            "type": "string",
+                            "description": "Body content type"
+                        },
+                        "text": {
+                            "type": "string",
+                            "description": "Raw body content"
+                        }
+                    }
+                },
+                "parameters": {
+                    "type": "array",
+                    "description": "URL parameters",
+                    "items": {
+                        "type": "object",
+                        "required": ["name", "value"],
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "Parameter name"
+                            },
+                            "value": {
+                                "type": "string",
+                                "description": "Parameter value"
+                            },
+                            "disabled": {
+                                "type": "boolean",
+                                "description": "Whether this parameter is disabled"
+                            }
+                        }
+                    }
+                },
+                "headers": {
+                    "type": "array",
+                    "description": "HTTP headers",
+                    "items": {
+                        "$ref": "#/definitions/header"
+                    }
+                },
+                "authentication": {
+                    "type": "object",
+                    "description": "Authentication settings",
+                    "properties": {
+                        "type": {
+                            "type": "string",
+                            "enum": ["basic", "bearer", "oauth2", "apikey", "none"]
+                        },
+                        "token": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "settingStoreCookies": {
+                    "type": "boolean",
+                    "description": "Whether to store cookies from the response"
+                },
+                "settingSendCookies": {
+                    "type": "boolean",
+                    "description": "Whether to send cookies with the request"
+                },
+                "settingDisableRenderRequestBody": {
+                    "type": "boolean"
+                },
+                "settingEncodeUrl": {
+                    "type": "boolean"
+                },
+                "settingRebuildPath": {
+                    "type": "boolean"
+                },
+                "settingFollowRedirects": {
+                    "type": "string"
+                }
+            }
+        },
+        "header": {
+            "type": "object",
+            "description": "An HTTP header",
+            "required": ["name", "value"],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Header name"
+                },
+                "value": {
+                    "type": "string",
+                    "description": "Header value"
+                },
+                "description": {
+                    "type": "string"
+                }
+            }
+        },
+        "request-group": {
+            "type": "object",
+            "description": "A group of requests (folder)",
+            "properties": {
+                "environment": {
+                    "type": "object",
+                    "description": "Environment variables specific to this group"
+                },
+                "environmentPropertyOrder": {
+                    "type": ["object", "null"]
+                }
+            }
+        },
+        "workspace": {
+            "type": "object",
+            "description": "A workspace containing requests and other resources",
+            "required": ["scope"],
+            "properties": {
+                "scope": {
+                    "type": "string",
+                    "description": "Scope of the workspace"
+                }
+            }
+        },
+        "environment": {
+            "type": "object",
+            "description": "A set of environment variables",
+            "required": ["data"],
+            "properties": {
+                "data": {
+                    "type": "object",
+                    "description": "Environment variables"
+                },
+                "dataPropertyOrder": {
+                    "type": ["object", "null"],
+                    "description": "Order of environment variables"
+                },
+                "color": {
+                    "type": ["string", "null"],
+                    "description": "Color identifier for the environment"
+                }
+            }
+        },
+        "cookie-jar": {
+            "type": "object",
+            "description": "A collection of cookies",
+            "required": ["cookies"],
+            "properties": {
+                "cookies": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cookie"
+                    }
+                }
+            }
+        },
+        "cookie": {
+            "type": "object",
+            "description": "A cookie with its attributes",
+            "required": ["id", "key", "value", "domain"],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "Unique identifier for the cookie"
+                },
+                "key": {
+                    "type": "string",
+                    "description": "Cookie name"
+                },
+                "value": {
+                    "type": "string",
+                    "description": "Cookie value"
+                },
+                "domain": {
+                    "type": "string",
+                    "description": "Cookie domain"
+                },
+                "expires": {
+                    "type": ["string", "null"],
+                    "description": "Cookie expiration date"
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Cookie path"
+                },
+                "secure": {
+                    "type": "boolean",
+                    "description": "Whether cookie is secure-only"
+                },
+                "httpOnly": {
+                    "type": "boolean",
+                    "description": "Whether cookie is HTTP-only"
+                },
+                "extensions": {
+                    "type": "array",
+                    "description": "Additional cookie attributes"
+                }
+            }
+        }
+    }
+}

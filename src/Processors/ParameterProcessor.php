@@ -47,20 +47,15 @@ final readonly class ParameterProcessor implements Exportable
     public function forPostman(): array
     {
         $result = [
-            'url' => [
-                'variable' => [],
-                'query' => []
-            ],
             'header' => [],
             'body' => null
         ];
 
         $this->parameters->each(function (Parameter $parameter) use (&$result) {
             match ($parameter->location) {
-                ParameterLocation::Path => $result['url']['variable'][] = $parameter->forPostman(),
-                ParameterLocation::Query => $result['url']['query'][] = $parameter->forPostman(),
                 ParameterLocation::Header => $result['header'][] = $parameter->forPostman(),
-                ParameterLocation::Body => $result['body'] = $parameter->forPostman()
+                ParameterLocation::Body => $result['body'] = $parameter->forPostman(),
+                default => null
             };
         });
 

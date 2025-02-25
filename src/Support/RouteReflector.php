@@ -15,7 +15,7 @@ final readonly class RouteReflector
     /**
      * @throws ReflectionException
      */
-    public static function method(Route $route): ReflectionMethod|ReflectionFunction|null
+    public static function action(Route $route): ReflectionMethod|ReflectionFunction|null
     {
         $action = $route->getAction();
 
@@ -47,9 +47,9 @@ final readonly class RouteReflector
     /**
      * @throws ReflectionException
      */
-    public static function class(Route $route): string
+    public static function controller(Route $route): ?string
     {
-        return self::method($route)?->getDeclaringClass()?->name ?? '';
+        return self::action($route)?->getDeclaringClass()?->name ?? null;
     }
 
     private static function containsSerializedClosure(array $action): bool

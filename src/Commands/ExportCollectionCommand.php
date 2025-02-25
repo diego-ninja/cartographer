@@ -13,6 +13,7 @@ use Ninja\Cartographer\Exceptions\ExportException;
 use Ninja\Cartographer\Exporters\InsomniaExporter;
 use Ninja\Cartographer\Exporters\PostmanExporter;
 use Ninja\Cartographer\Processors\AuthenticationProcessor;
+use Ninja\Cartographer\Processors\RouteProcessor;
 use Throwable;
 
 class ExportCollectionCommand extends Command
@@ -46,7 +47,9 @@ class ExportCollectionCommand extends Command
             $this->configureAuthentication();
 
             // Update structured configuration
-            config()->set('cartographer.structured', $this->option('structured'));
+            if ($this->option('structured')) {
+                config()->set('cartographer.structured', $this->option('structured'));
+            }
 
             // Generate filename
             $filename = $this->generateFilename($format);
@@ -59,7 +62,7 @@ class ExportCollectionCommand extends Command
 
             $this->storeCollection($format, $filename, $exporter->getOutput());
 
-            $this->info('Collection Exported: ' . storage_path(sprintf('app/%s/%s', $format->value, $filename)));
+            $this->info('Group Exported: ' . storage_path(sprintf('app/%s/%s', $format->value, $filename)));
         } catch (CartographerException $e) {
             $this->error($e->getMessage());
             return;
@@ -110,8 +113,8 @@ class ExportCollectionCommand extends Command
     private function resolveExporter(Format $format): PostmanExporter|InsomniaExporter
     {
         return match ($format) {
-            Format::Insomnia => app(InsomniaExporter::class),
-            Format::Postman => app(PostmanExporter::class),
+            Format::Insomnia => new InsomniaExporter(config(), app(RouteProcessor::class), $this->authProcessor),
+            Format::Postman => new PostmanExporter(config(), app(RouteProcessor::class), $this->authProcessor),
             Format::Bruno => throw ConfigurationException::invalidExportFormat('bruno (not implemented)'),
         };
     }

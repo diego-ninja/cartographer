@@ -3,53 +3,43 @@
 namespace Ninja\Cartographer\Collections;
 
 use Illuminate\Support\Collection;
+use Ninja\Cartographer\Contracts\Serializable;
 use Ninja\Cartographer\DTO\Request;
 use Ninja\Cartographer\Enums\Method;
 
-final class RequestCollection extends Collection
+final class RequestCollection extends ExportableCollection
 {
-    public static function from(array $requests): RequestCollection
+    public static function from(array|string|Serializable $items): RequestCollection
     {
-        return new self(array_map(fn(array $request) => Request::from($request), $requests));
-    }
-
-    public function groupByNestedPath(): array
-    {
-        $grouped = [];
-
-        /** @var Request $request */
-        foreach ($this as $request) {
-            if (Method::HEAD === $request->method) {
-                continue;
-            }
-
-            $path = $request->getNestedPath();
-
-            if (empty($path)) {
-                if ( ! isset($grouped['Default'])) {
-                    $grouped['Default'] = ['requests' => [], 'children' => []];
-                }
-                $grouped['Default']['requests'][] = $request;
-                continue;
-            }
-
-            $current = &$grouped;
-
-            for ($i = 0; $i < count($path) - 1; $i++) {
-                $segment = $path[$i];
-                if ( ! isset($current[$segment])) {
-                    $current[$segment] = ['requests' => [], 'children' => []];
-                }
-                $current = &$current[$segment]['children'];
-            }
-
-            $lastSegment = end($path);
-            if ( ! isset($current[$lastSegment])) {
-                $current[$lastSegment] = ['requests' => [], 'children' => []];
-            }
-            $current[$lastSegment]['requests'][] = $request;
+        if ($items instanceof self) {
+            return $items;
         }
 
-        return $grouped;
+        if (is_string($items)) {
+            return self::from(json_decode($items, true));
+        }
+
+        return new self(array_map(fn(array $request) => Request::from($request), $items));
+    }
+
+
+    public function forPostman(): array
+    {
+        return $this->map->forPostman()->values()->all();
+    }
+
+    public function forInsomnia(): array
+    {
+        return $this->map->forInsomnia()->values()->all();
+    }
+
+    public function groupByPath(): array
+    {
+        return $this->groupBy(function (Request $request) {
+            return implode('/', array_filter(
+                explode('/', trim($request->uri, '/')),
+                fn($segment) => !str_starts_with($segment, '{')
+            ));
+        })->all();
     }
 }

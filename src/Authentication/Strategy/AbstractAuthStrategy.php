@@ -3,8 +3,9 @@
 namespace Ninja\Cartographer\Authentication\Strategy;
 
 use Ninja\Cartographer\Contracts\AuthenticationStrategy;
+use Ninja\Cartographer\Contracts\Exportable;
 
-abstract readonly class AbstractAuthStrategy implements AuthenticationStrategy
+abstract readonly class AbstractAuthStrategy implements AuthenticationStrategy, Exportable
 {
     public function __construct(
         protected ?string $token = null,
@@ -31,7 +32,7 @@ abstract readonly class AbstractAuthStrategy implements AuthenticationStrategy
         ];
     }
 
-    public function toPostmanFormat(): array
+    public function forPostman(): array
     {
         return [
             'type' => $this->getType(),
@@ -45,7 +46,7 @@ abstract readonly class AbstractAuthStrategy implements AuthenticationStrategy
         ];
     }
 
-    public function toInsomniaFormat(): array
+    public function forInsomnia(): array
     {
         return [
             'type' => $this->getType(),

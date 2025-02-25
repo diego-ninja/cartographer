@@ -77,10 +77,10 @@ php artisan cartographer:export --apikey=your-api-key
 Use attributes to customize how your endpoints appear in the collection:
 
 ```php
-use Ninja\Cartographer\Attributes\Collection;
+use Ninja\Cartographer\Attributes\Group;
 use Ninja\Cartographer\Attributes\Request;
 
-#[Collection(
+#[Group(
     name: 'User Management',
     description: 'User management endpoints',
     group: 'Users'

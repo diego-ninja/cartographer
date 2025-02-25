@@ -30,20 +30,22 @@ final readonly class BodyProcessor
             return null;
         }
 
-        if ( ! RouteReflector::method($route) || ! $this->config->get('cartographer.enable_formdata')) {
+        if (!RouteReflector::action($route) || !$this->config->get('cartographer.enable_formdata')) {
             return null;
         }
 
-        $formParameters = $this->formDataProcessor->process($route);
+        $formParameters = $this->formDataProcessor->process($route, $method);
         if ($formParameters->isEmpty()) {
             return null;
         }
 
         $mode = BodyMode::from($this->config->get('cartographer.body_mode', BodyMode::Raw->value));
+        $formdata = $this->config->get('cartographer.formdata', []);
+
         $content = $this->bodyContentHandler->prepareContent(
             parameters: $formParameters,
             mode: $mode,
-            formdata: $this->config->get('cartographer.formdata', []),
+            formdata: $formdata
         );
 
         return new Body(

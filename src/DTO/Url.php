@@ -5,9 +5,9 @@ namespace Ninja\Cartographer\DTO;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Str;
 use JsonSerializable;
+use Ninja\Cartographer\Collections\ParameterCollection;
 use Ninja\Cartographer\Enums\Method;
 use Ninja\Cartographer\Enums\ParameterLocation;
-use Ninja\Cartographer\Processors\ParameterProcessor;
 
 final readonly class Url implements JsonSerializable
 {
@@ -17,34 +17,48 @@ final readonly class Url implements JsonSerializable
         public array $path,
         public array $variable = [],
         public array $query = [],
+        public ?string $protocol = null,
+        public ?string $port = null
     ) {}
 
     public static function fromRoute(
         Route $route,
         Method $method,
-        ParameterProcessor $parameters
+        ParameterCollection $parameters
     ): self {
-        $uri = Str::of($route->uri())->replaceMatches('/{([[:alnum:]_]+)}/', ':$1');
+        $uri = Str::of($route->uri())->replaceMatches('/{([[:alnum:]_]+)\??}/', ':$1');
 
-        $data = [
-            'raw' => '{{base_url}}/' . $uri,
-            'host' => ['{{base_url}}'],
-            'path' => explode('/', mb_trim($uri, '/')),
-        ];
+        $baseUrl = config('cartographer.base_url');
+        $parsedUrl = parse_url($baseUrl);
 
-        $pathParameters = $parameters->getParametersByLocation(ParameterLocation::Path)
+        $raw = rtrim('{{base_url}}/' . $uri, '/');
+
+        $host = isset($parsedUrl['host'])
+            ? [$parsedUrl['host']]
+            : ['{{base_url}}'];
+
+        $path = array_values(
+            array_filter(
+                explode('/', trim($uri, '/')),
+                fn($segment) => !empty($segment)
+            )
+        );
+
+        $pathParameters = $parameters->byLocation(ParameterLocation::Path)
             ->map(fn($param) => [
                 'key' => $param->name,
                 'value' => $param->value ?? '',
-                'description' => $param->description
+                'description' => $param->description,
+                'type' => 'string',
+                'required' => true
             ])
             ->values()
             ->all();
 
-        $data['variable'] = $pathParameters;
 
+        $queryParameters = [];
         if ($method === Method::GET) {
-            $queryParameters = $parameters->getParametersByLocation(ParameterLocation::Query)
+            $queryParameters = $parameters->byLocation(ParameterLocation::Query)
                 ->map(fn($param) => [
                     'key' => $param->name,
                     'value' => $param->value ?? '',
@@ -53,11 +67,17 @@ final readonly class Url implements JsonSerializable
                 ])
                 ->values()
                 ->all();
-
-            $data['query'] = $queryParameters;
         }
 
-        return self::from($data);
+        return new self(
+            raw: $raw,
+            host: $host,
+            path: $path,
+            variable: $pathParameters,
+            query: $queryParameters,
+            protocol: $parsedUrl['scheme'] ?? 'http',
+            port: isset($parsedUrl['port']) ? (string)$parsedUrl['port'] : null
+        );
     }
 
     public static function from(string|array $data): self
@@ -72,23 +92,38 @@ final readonly class Url implements JsonSerializable
             path: $data['path'],
             variable: $data['variable'] ?? [],
             query: $data['query'] ?? [],
+            protocol: $data['protocol'] ?? 'http',
+            port: $data['port'] ?? null
         );
     }
 
     public function array(): array
     {
-        return [
+        $result = [
             'raw' => $this->raw,
+            'protocol' => $this->protocol,
             'host' => $this->host,
             'path' => $this->path,
-            'variable' => $this->variable,
-            'query' => $this->query,
         ];
+
+        if (!empty($this->port)) {
+            $result['port'] = $this->port;
+        }
+
+        if (!empty($this->variable)) {
+            $result['variable'] = $this->variable;
+        }
+
+        if (!empty($this->query)) {
+            $result['query'] = $this->query;
+        }
+
+        return $result;
     }
 
     public function forInsomnia(): string
     {
-        $url = preg_replace('#/+#', '/', mb_trim($this->raw, '/'));
+        $url = preg_replace('#/+#', '/', trim($this->raw, '/'));
 
         if (!empty($this->query)) {
             $queryString = http_build_query(

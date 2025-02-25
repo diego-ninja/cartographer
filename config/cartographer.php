@@ -15,7 +15,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Collection Filename
+    | Group Filename
     |--------------------------------------------------------------------------
     |
     | The name for the collection file to be saved.
@@ -26,14 +26,14 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Collection Name
+    | Group Name
     |--------------------------------------------------------------------------
     |
     | The name for the collection.
     |
     */
 
-    'name' => 'Laravel API Collection',
+    'name' => 'Laravel API Group',
 
     /*
     |--------------------------------------------------------------------------
@@ -46,8 +46,8 @@ return [
     | separators are '.', ':' and '::'.
     */
 
-    'structured' => false,
-    'structured_by' => Ninja\Cartographer\Enums\StructureMode::Path, // @requires: 'structured' ===  true, valid options: 'path', 'route'
+    'structured' => true,
+    'structured_by' => Ninja\Cartographer\Enums\StructureMode::Path->value, // @requires: 'structured' ===  true, valid options: 'path', 'route'
 
     /*
     |--------------------------------------------------------------------------
@@ -114,7 +114,7 @@ return [
     | 'raw', 'urlencoded', 'formdata', 'file', 'graphql', 'none'
     |
     */
-    'body_mode' => env('CARTOGRAPHER_COLLECTION_BODY_MODE', 'raw'),
+    'body_mode' => env('CARTOGRAPHER_COLLECTION_BODY_MODE', \Ninja\Cartographer\Enums\ParameterFormat::Raw->value),
 
     /*
     |--------------------------------------------------------------------------

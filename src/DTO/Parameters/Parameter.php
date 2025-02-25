@@ -7,15 +7,15 @@ use Ninja\Cartographer\Contracts\Exportable;
 use Ninja\Cartographer\Enums\ParameterFormat;
 use Ninja\Cartographer\Enums\ParameterLocation;
 
-abstract readonly class Parameter implements JsonSerializable, Exportable
+readonly class Parameter implements JsonSerializable, Exportable
 {
     public function __construct(
         public string            $name,
-        public string            $value,
+        public mixed             $value,
         public ?string           $description = null,
         public array             $rules = [],
+        public array             $metadata = [],
         public bool              $required = false,
-        public ?string           $example = null,
         public ParameterLocation $location = ParameterLocation::Query,
         public ?ParameterFormat   $format = null,
     ) {}
@@ -35,8 +35,8 @@ abstract readonly class Parameter implements JsonSerializable, Exportable
             value: $data['value'],
             description: $data['description'] ?? null,
             rules: $data['rules'] ?? [],
+            metadata: $data['metadata'] ?? [],
             required: $data['required'] ?? false,
-            example: $data['example'] ?? null,
             location: ParameterLocation::from($data['location'] ?? 'query'),
             format: $data['format'] ? ParameterFormat::from($data['format']) : null,
         );
@@ -49,8 +49,8 @@ abstract readonly class Parameter implements JsonSerializable, Exportable
             'value' => $this->value,
             'description' => $this->description,
             'rules' => $this->rules,
+            'metadata' => $this->metadata,
             'required' => $this->required,
-            'example' => $this->example,
             'location' => $this->location->value,
             'format' => $this->format?->value,
         ];
@@ -64,5 +64,49 @@ abstract readonly class Parameter implements JsonSerializable, Exportable
     public function jsonSerialize(): array
     {
         return $this->array();
+    }
+
+    public function forPostman(): array
+    {
+        return match($this->location) {
+            ParameterLocation::Path => [
+                'key' => $this->name,
+                'value' => $this->value ?? '',
+                'description' => $this->description,
+                'type' => 'string',
+                'required' => $this->required
+            ],
+            ParameterLocation::Query => [
+                'key' => $this->name,
+                'value' => $this->value ?? '',
+                'description' => $this->description,
+                'disabled' => false
+            ],
+            ParameterLocation::Header => [
+                'key' => $this->name,
+                'value' => $this->value ?? '',
+                'type' => 'text'
+            ],
+            default => []
+        };
+    }
+
+    public function forInsomnia(): array
+    {
+        return match($this->location) {
+            ParameterLocation::Path,
+            ParameterLocation::Query => [
+                'name' => $this->name,
+                'value' => $this->value ?? '',
+                'description' => $this->description,
+                'disabled' => false
+            ],
+            ParameterLocation::Header => [
+                'name' => $this->name,
+                'value' => $this->value ?? '',
+                'description' => $this->description
+            ],
+            default => []
+        };
     }
 }

@@ -9,7 +9,6 @@ use Ramsey\Uuid\UuidInterface;
 
 final class PostmanCollectionBuilder extends AbstractCollectionBuilder
 {
-    private ?array $protocolProfileBehavior = null;
     /**
      * @throws ExportException
      */
@@ -23,8 +22,8 @@ final class PostmanCollectionBuilder extends AbstractCollectionBuilder
             'info' => $this->structure['info'],
             'variable' => $this->variables,
             'item' => $this->processGroups(),
-            'auth' => $this->auth,
-            'event' => $this->events,
+            'auth' => $this->auth?->forPostman(),
+            'event' => $this->scripts?->forPostman(),
         ]);
     }
 
@@ -46,7 +45,7 @@ final class PostmanCollectionBuilder extends AbstractCollectionBuilder
 
         if ($ungroupedRequests->isNotEmpty()) {
             $items[] = [
-                'name' => $this->config->get('cartographer.name', 'Cartographer Collection'),
+                'name' => $this->config->get('cartographer.name', 'Cartographer Group'),
                 'item' => $ungroupedRequests->map->forPostman()->values()->all()
             ];
         }
@@ -69,11 +68,5 @@ final class PostmanCollectionBuilder extends AbstractCollectionBuilder
                 'patch' => 0,
             ],
         ];
-    }
-
-    public function setProtocolProfileBehavior(array $behavior): self
-    {
-        $this->protocolProfileBehavior = $behavior;
-        return $this;
     }
 }

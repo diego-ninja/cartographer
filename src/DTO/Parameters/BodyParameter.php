@@ -15,16 +15,14 @@ final readonly class BodyParameter extends Parameter
         string $description,
         array $rules = [],
         bool $required = false,
-        ?string $example = null,
         ?ParameterFormat $format = ParameterFormat::Json,
     ) {
         parent::__construct(
             name: $name,
-            value: null,
+            value: '',
             description: $description,
             rules: $rules,
             required: $required,
-            example: $example,
             location: ParameterLocation::Body,
             format: $format
         );

@@ -27,7 +27,8 @@ final readonly class RouteParameterMapper extends ParameterMapper
             $parameters[] = new PathParameter(
                 name: $name,
                 description: sprintf("URL parameter: %s", $name),
-                required: !$isOptional
+                required: !$isOptional,
+                value: ''
             );
         }
 

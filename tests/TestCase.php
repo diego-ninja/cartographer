@@ -2,6 +2,8 @@
 
 namespace Ninja\Cartographer\Tests;
 
+use Ninja\Cartographer\Enums\BodyMode;
+use Ninja\Cartographer\Enums\ParameterFormat;
 use Ninja\Cartographer\Enums\StructureMode;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Random\RandomException;
@@ -14,13 +16,13 @@ class TestCase extends Orchestra
 
         $this->app['config']->set('cartographer', [
             'base_url' => 'http://api.test',
-            'name' => 'Test API Collection',
+            'name' => 'Test API Group',
             'filename' => 'test.json',
             'auth_middleware' => 'auth:api',
             'include_middleware' => ['api'],
             'structured' => true,
-            'structured_by' => StructureMode::Path,
-            'body_mode' => 'raw',
+            'structured_by' => StructureMode::Path->value,
+            'body_mode' => BodyMode::Raw->value,
             'enable_formdata' => true,
             'disk' => 'local',
             'headers' => [

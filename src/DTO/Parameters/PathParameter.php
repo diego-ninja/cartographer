@@ -10,7 +10,6 @@ final readonly class PathParameter extends Parameter
         string $name,
         string $description,
         bool $required = true,
-        ?string $example = null,
         mixed $value = null,
     ) {
         parent::__construct(
@@ -18,7 +17,6 @@ final readonly class PathParameter extends Parameter
             value: $value,
             description: $description,
             required: $required,
-            example: $example,
             location: ParameterLocation::Path
         );
     }

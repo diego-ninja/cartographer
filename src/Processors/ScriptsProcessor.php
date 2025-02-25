@@ -2,7 +2,6 @@
 
 namespace Ninja\Cartographer\Processors;
 
-use Illuminate\Config\Repository;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\File;
 use Ninja\Cartographer\Collections\ScriptCollection;
@@ -13,31 +12,31 @@ use ReflectionException;
 
 final readonly class ScriptsProcessor
 {
-    public function __construct(private AttributeProcessor $attributeProcessor, private Repository $config) {}
+    public function __construct(private AttributeProcessor $attributeProcessor) {}
 
     /**
      * @throws ReflectionException
      */
     public function processScripts(Route $route): ScriptCollection
     {
-        $request = $this->attributeProcessor->getRequestAttribute(RouteReflector::method($route));
-        $collection = $this->attributeProcessor->getCollectionAttribute(RouteReflector::class($route));
+        $request = $this->attributeProcessor->getRequestAttribute(RouteReflector::action($route));
+        $group = $this->attributeProcessor->getGroupAttribute(RouteReflector::controller($route));
 
         if ($request?->scripts) {
             return $request->scripts();
         }
 
-        if ($collection?->scripts) {
-            return $collection->scripts();
+        if ($group?->scripts) {
+            return $group->scripts();
         }
 
-        return $this->processScriptsFromConfig();
+        return self::processScriptsFromConfig();
     }
 
-    private function processScriptsFromConfig(): ScriptCollection
+    public static function processScriptsFromConfig(): ScriptCollection
     {
         $scripts = new ScriptCollection();
-        $configScripts = $this->config->get('cartographer.scripts', []);
+        $configScripts = config()->get('cartographer.scripts', []);
         foreach ($configScripts as $type => $script) {
             if ($script["enabled"]) {
                 $type = EventType::from($type);

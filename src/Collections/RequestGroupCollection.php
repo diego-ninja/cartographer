@@ -2,11 +2,20 @@
 
 namespace Ninja\Cartographer\Collections;
 
-use Illuminate\Support\Collection;
+use Ninja\Cartographer\Contracts\Serializable;
 use Ninja\Cartographer\DTO\RequestGroup;
 
-final class RequestGroupCollection extends Collection
+final class RequestGroupCollection extends ExportableCollection
 {
+
+    public static function from(array|string|Serializable $items): self
+    {
+        return new self(array_map(
+            fn(array $group) => RequestGroup::from($group),
+            $items
+        ));
+    }
+
     public function addGroup(RequestGroup $group): self
     {
         $this->add($group);
@@ -31,5 +40,15 @@ final class RequestGroupCollection extends Collection
         }
 
         return $requests;
+    }
+
+    public function forPostman(): array
+    {
+        return $this->map->forPostman()->values()->all();
+    }
+
+    public function forInsomnia(): array
+    {
+        return $this->map->forInsomnia()->values()->all();
     }
 }

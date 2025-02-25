@@ -8,5 +8,5 @@ interface Exporter
 
     public function getOutput(): bool|string;
 
-    public function export(): void;
+    public function export(): self;
 }

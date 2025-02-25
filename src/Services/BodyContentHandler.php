@@ -18,7 +18,7 @@ final readonly class BodyContentHandler
         ParameterCollection $parameters,
         BodyMode $mode,
         ?array $formdata = [],
-    ): array {
+    ): array|string {
         return match ($mode) {
             BodyMode::Raw => $this->prepareRawContent($parameters, $formdata),
             BodyMode::UrlEncoded,
@@ -44,11 +44,33 @@ final readonly class BodyContentHandler
         $content = [];
 
         foreach ($parameters as $param) {
-            $value = $formdata[$param->name] ?? $this->getDefaultValueForType($param->description ?? '');
-            $this->setNestedValue($content, $param->name, $value);
+            if (!isset($param->structure)) {
+                continue;
+            }
+
+            return $this->processStructure($param->structure);
         }
 
         return $content;
+    }
+
+    private function processStructure(array $structure): array
+    {
+        $result = [];
+
+        foreach ($structure as $key => $value) {
+            if (is_array($value)) {
+                if (isset($value['value'])) {
+                    $result[$key] = $value['value'];
+                } else {
+                    $result[$key] = $this->processStructure($value);
+                }
+            } else {
+                $result[$key] = $value;
+            }
+        }
+
+        return $result;
     }
 
     private function prepareParameterBasedContent(ParameterCollection $parameters, array $formdata): array
@@ -59,38 +81,5 @@ final readonly class BodyContentHandler
             'type' => 'text',
             'description' => $this->ruleFormatter->format($param->name, $param->rules),
         ])->values()->all();
-    }
-
-    private function getDefaultValueForType(string $description): mixed
-    {
-        $description = mb_strtolower($description);
-
-        return match (true) {
-            str_contains($description, 'integer') => 0,
-            str_contains($description, 'number') => 0.0,
-            str_contains($description, 'boolean') => false,
-            str_contains($description, 'array') => [],
-            str_contains($description, 'object') => new stdClass(),
-            default => "",
-        };
-    }
-
-    private function setNestedValue(array &$array, string $key, mixed $value): void
-    {
-        if (str_contains($key, '.')) {
-            $keys = explode('.', $key);
-            $current = &$array;
-
-            foreach ($keys as $nestedKey) {
-                if ( ! isset($current[$nestedKey])) {
-                    $current[$nestedKey] = [];
-                }
-                $current = &$current[$nestedKey];
-            }
-
-            $current = $value;
-        } else {
-            $array[$key] = $value;
-        }
     }
 }

@@ -2,7 +2,7 @@
 
 namespace Ninja\Cartographer\Processors;
 
-use Ninja\Cartographer\Attributes\Collection;
+use Ninja\Cartographer\Attributes\Group;
 use Ninja\Cartographer\Attributes\Request;
 use ReflectionClass;
 use ReflectionException;
@@ -14,16 +14,16 @@ final readonly class AttributeProcessor
     /**
      * @throws ReflectionException
      */
-    public function getCollectionAttribute(string $className): ?Collection
+    public function getGroupAttribute(string $className): ?Group
     {
         $reflector = new ReflectionClass($className);
-        $attributes = $reflector->getAttributes(Collection::class);
+        $attributes = $reflector->getAttributes(Group::class);
 
         if (empty($attributes)) {
             return null;
         }
 
-        /** @var Collection $collection */
+        /** @var Group $group */
         return $attributes[0]->newInstance();
     }
 

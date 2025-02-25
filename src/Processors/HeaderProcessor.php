@@ -21,12 +21,12 @@ final readonly class HeaderProcessor
     public function processHeaders(Route $route): HeaderCollection
     {
         $configHeaders = $this->config->get('cartographer.headers', []);
-        $request = $this->attributeProcessor->getRequestAttribute(RouteReflector::method($route));
-        $collection = $this->attributeProcessor->getCollectionAttribute(RouteReflector::class($route));
+        $request = $this->attributeProcessor->getRequestAttribute(RouteReflector::action($route));
+        $group = $this->attributeProcessor->getGroupAttribute(RouteReflector::controller($route));
 
         $headers = collect($configHeaders)
             ->merge($request?->headers ?? [])
-            ->merge($collection?->headers ?? [])
+            ->merge($group?->headers ?? [])
             ->map(function ($header, $key) {
                 if (is_string($key)) {
                     return ['key' => $key, 'value' => $header];

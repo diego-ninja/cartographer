@@ -12,153 +12,223 @@ use Ninja\Cartographer\Enums\StructureMode;
 
 final class GroupProcessor
 {
-    private array $groupMap = [];
+    private array $groupCache = [];
+    private ?RequestGroupCollection $collection = null;
 
     public function __construct(
         private readonly Repository $config,
+        private readonly AttributeProcessor $attributeProcessor
     ) {}
 
     public function processRequests(RequestCollection $requests): RequestGroupCollection
     {
-        $collection = new RequestGroupCollection();
-        $orphans = new RequestCollection();
+        $this->collection = new RequestGroupCollection();
+
+        if (!$this->config->get('cartographer.structured', true)) {
+            return $this->processUnstructuredRequests($requests);
+        }
+
+        $mode = StructureMode::from(
+            $this->config->get('cartographer.structured_by', StructureMode::Path->value)
+        );
+
+        $groupedRequests = $this->groupRequestsByBaseUri($requests);
+
+        foreach ($groupedRequests as $requests) {
+            $this->processGroup($requests, $mode);
+        }
+
+        return $this->collection;
+    }
+
+    private function processUnstructuredRequests(RequestCollection $requests): RequestGroupCollection
+    {
+        $defaultGroup = $this->createGroup(
+            name: $this->config->get('cartographer.name', 'API Endpoints'),
+            description: 'Default endpoint group'
+        );
 
         foreach ($requests as $request) {
-            if (!$this->config->get('cartographer.structured')) {
-                $orphans->add($request);
-            } else {
-                if (null !== $request->group) {
-                    $group = $this->getOrCreateGroup($request->group);
-                    $group->requests->add($request);
-                    if ( ! $collection->contains($group)) {
-                        $collection->add($group);
-                    }
-                } else {
-                    if ($this->config->get('cartographer.structured', false)) {
-                        $structuredBy = $this->config->get('cartographer.structured_by', StructureMode::Path);
-                        $segments = $this->getSegments($request, $structuredBy);
-
-                        $this->processRequestWithSegments($request, $segments, $collection);
-                    } else {
-                        $orphans->add($request);
-                    }
-                }
-            }
+            $defaultGroup->addRequest($request);
         }
 
-        if ($orphans->isNotEmpty()) {
-            $defaultGroup = new RequestGroup(
-                id: Str::uuid(),
-                name: $this->config->get('cartographer.name', 'Cartographer Collection'),
-                description: 'Default endpoints group'
-            );
-
-            $orphans->each(fn(Request $orphan) => $defaultGroup->addRequest($orphan));
-            $collection->add($defaultGroup);
-        }
-
-        return $collection;
+        $this->collection->add($defaultGroup);
+        return $this->collection;
     }
 
-    private function getSegments(Request $request, StructureMode $structuredBy): array
+    private function processGroup(array $requests, StructureMode $mode): void
     {
-        if (StructureMode::Route === $structuredBy && $request->name) {
-            return array_filter(preg_split('/[.:]++/', $request->name));
-        }
+        /** @var Request $firstRequest */
+        $firstRequest = $requests[0];
 
-        return array_values(array_filter(
-            explode('/', $request->uri),
-            fn($segment) => ! empty($segment) && ! Str::startsWith($segment, '{'),
-        ));
-    }
-
-    private function processRequestWithSegments(
-        Request $request,
-        array $segments,
-        RequestGroupCollection $collection,
-    ): void {
-        if (empty($segments) || ($this->shouldBeRoot($segments))) {
-            $collection->add($request);
+        if ($firstRequest->group !== null) {
+            $this->processExplicitGroup($requests, $firstRequest);
             return;
         }
 
-        $groupSegments = $this->getGroupSegments($segments);
-        $currentGroup = $this->buildGroupHierarchy($groupSegments, $collection);
-
-        if ($currentGroup) {
-            $currentGroup->requests->add($request);
-        } else {
-            $collection->add($request);
+        $segments = $this->getSegments($firstRequest, $mode);
+        if (empty($segments)) {
+            $this->addToDefaultGroup($requests);
+            return;
         }
+
+        $this->processSegments($segments, $requests);
     }
 
-    private function shouldBeRoot(array $segments): bool
+    private function processExplicitGroup(array $requests, Request $firstRequest): void
     {
-        $structuredBy = $this->config->get('cartographer.structured_by', StructureMode::Path);
-        return StructureMode::Path === $structuredBy && 1 === count($segments);
-    }
-
-    private function getGroupSegments(array $segments): array
-    {
-        return array_slice($segments, 0, -1);
-    }
-
-    private function buildGroupHierarchy(array $groupSegments, RequestGroupCollection $collection): ?RequestGroup
-    {
-        if (empty($groupSegments)) {
-            return null;
-        }
-
-        $currentGroup = null;
-        $groupPath = '';
-
-        foreach ($groupSegments as $segment) {
-            $groupPath .= '/' . $segment;
-            $currentGroup = $this->ensureGroup($groupPath, $segment, $currentGroup, $collection);
-        }
-
-        return $currentGroup;
-    }
-
-    private function ensureGroup(
-        string $groupPath,
-        string $segment,
-        ?RequestGroup $parentGroup,
-        RequestGroupCollection $collection,
-    ): RequestGroup {
-        if (isset($this->groupMap[$groupPath])) {
-            return $this->groupMap[$groupPath];
-        }
-
-        $group = new RequestGroup(
-            id: Str::uuid(),
-            name: Str::title($segment),
-            description: sprintf('Endpoints for %s', $segment),
-            parent: $parentGroup,
+        $groupAttributes = $this->attributeProcessor->getGroupAttribute($firstRequest->action->class);
+        $group = $this->getOrCreateGroup(
+            name: $firstRequest->group,
+            description: $groupAttributes?->description()
         );
 
-        if ($parentGroup) {
-            $parentGroup->children->add($group);
-        } else {
-            $collection->add($group);
+        foreach ($requests as $request) {
+            $group->addRequest($request);
         }
 
-        $this->groupMap[$groupPath] = $group;
+        if (!$this->collection->contains($group)) {
+            $this->collection->add($group);
+        }
+    }
+
+    private function processSegments(array $segments, array $requests): void
+    {
+        $currentGroup = null;
+        $path = '';
+
+        foreach ($segments as $segment) {
+            $path .= '/' . $segment;
+            $currentGroup = $this->ensureGroupHierarchy($path, $segment, $currentGroup);
+        }
+
+        if ($currentGroup) {
+            foreach ($requests as $request) {
+                $currentGroup->addRequest($request);
+            }
+        }
+    }
+
+    private function ensureGroupHierarchy(string $path, string $segment, ?RequestGroup $parent): RequestGroup
+    {
+        $normalizedPath = Str::lower($path);
+
+        if (isset($this->groupCache[$normalizedPath])) {
+            return $this->groupCache[$normalizedPath];
+        }
+
+        $group = $this->createGroup(
+            name: $this->formatGroupName($segment),
+            description: sprintf('Endpoints for %s', $segment),
+            parent: $parent
+        );
+
+        if ($parent) {
+            $parent->addChild($group);
+        } else {
+            $this->collection->add($group);
+        }
+
+        $this->groupCache[$normalizedPath] = $group;
         return $group;
     }
 
-    private function getOrCreateGroup(string $name): RequestGroup
+    private function getSegments(Request $request, StructureMode $mode): array
+    {
+        return match ($mode) {
+            StructureMode::Route => $this->getRouteSegments($request->name),
+            default => $this->getPathSegments($request->uri)
+        };
+    }
+
+    private function getRouteSegments(string $name): array
+    {
+        foreach (['.', '::', '-', ':'] as $separator) {
+            if (str_contains($name, $separator)) {
+                $segments = explode($separator, $name);
+                array_pop($segments);
+                return array_filter($segments);
+            }
+        }
+        return [];
+    }
+
+    private function getPathSegments(string $uri): array
+    {
+        return array_values(array_filter(
+            explode('/', trim($uri, '/')),
+            fn($segment) => !empty($segment) && !str_starts_with($segment, '{')
+        ));
+    }
+
+    private function groupRequestsByBaseUri(RequestCollection $requests): array
+    {
+        $groups = [];
+        foreach ($requests as $request) {
+            $baseUri = $this->getBaseUri($request->uri);
+            $groups[$baseUri][] = $request;
+        }
+        return $groups;
+    }
+
+    private function getBaseUri(string $uri): string
+    {
+        $segments = array_filter(
+            explode('/', trim($uri, '/')),
+            fn($segment) => !str_starts_with($segment, '{')
+        );
+        return implode('/', $segments);
+    }
+
+    private function createGroup(
+        string $name,
+        string $description,
+        ?RequestGroup $parent = null
+    ): RequestGroup {
+        return new RequestGroup(
+            id: Str::uuid(),
+            name: $this->formatGroupName($name),
+            description: $description,
+            parent: $parent
+        );
+    }
+
+    private function formatGroupName(string $name): string
+    {
+        return Str::title(
+            trim(
+                preg_replace(
+                    '/(?<=\\w)(?=[A-Z])/',
+                    ' $1',
+                    str_replace(['_', '-'], ' ', $name)
+                )
+            )
+        );
+    }
+
+    private function addToDefaultGroup(array $requests): void
+    {
+        $defaultGroup = $this->getOrCreateGroup('Default');
+        foreach ($requests as $request) {
+            $defaultGroup->addRequest($request);
+        }
+
+        if (!$this->collection->contains($defaultGroup)) {
+            $this->collection->add($defaultGroup);
+        }
+    }
+
+    private function getOrCreateGroup(string $name, ?string $description = null): RequestGroup
     {
         $normalizedName = '/' . Str::lower($name);
 
-        if ( ! isset($this->groupMap[$normalizedName])) {
-            $this->groupMap[$normalizedName] = new RequestGroup(
-                id: Str::uuid(),
-                name: Str::title($name),
-                description: sprintf('Endpoints for %s', $name),
+        if (!isset($this->groupCache[$normalizedName])) {
+            $this->groupCache[$normalizedName] = $this->createGroup(
+                name: $name,
+                description: $description ?? sprintf('Endpoints for %s', $name)
             );
         }
 
-        return $this->groupMap[$normalizedName];
+        return $this->groupCache[$normalizedName];
     }
 }

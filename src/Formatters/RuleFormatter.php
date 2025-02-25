@@ -5,7 +5,6 @@ namespace Ninja\Cartographer\Formatters;
 use Illuminate\Config\Repository;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationRuleParser;
 
 final readonly class RuleFormatter
@@ -14,66 +13,76 @@ final readonly class RuleFormatter
         private Repository $config,
     ) {}
 
-    public function format(string $attribute, array|Rule $rules): string
+    /**
+     * @param string $attribute
+     * @param ValidationRule|array|string $rules
+     * @return string
+     */
+    public function format(string $attribute, ValidationRule|array|string $rules): string
     {
-        if ( ! $this->config->get('cartographer.rules_to_human_readable')) {
-            foreach ($rules as $i => $rule) {
-                if (is_subclass_of($rule, ValidationRule::class)) {
-                    unset($rules[$i]);
-                }
-            }
-
-            return is_array($rules) ? implode(', ', $rules) : $this->stringify($rules);
+        if (is_string($rules)) {
+            $rules = explode('|', $rules);
         }
 
-        if (is_object($rules)) {
-            $rules = [$this->stringify($rules)];
+        if ($rules instanceof ValidationRule) {
+            $rules = [$rules];
         }
 
-        if (is_array($rules) && ! empty($rules)) {
-            $validator = Validator::make([], [$attribute => implode('|', $rules)]);
-
-            foreach ($rules as $rule) {
-                [$rule, $parameters] = ValidationRuleParser::parse($rule);
-
-                $validator->addFailure($attribute, $rule, $parameters);
-            }
-
-            $messages = $validator->getMessageBag()->toArray()[$attribute];
-
-            if (is_array($messages)) {
-                $messages = $this->handleEdgeCases($messages);
-            }
-
-            return implode(', ', is_array($messages) ? $messages : $messages->toArray());
+        if (!$this->config->get('cartographer.rules_to_human_readable')) {
+            $filteredRules = array_filter($rules, fn($rule) => !($rule instanceof ValidationRule));
+            return implode(', ', $filteredRules);
         }
 
-        return '';
-    }
+        $validator = Validator::make([], [$attribute => implode('|', $this->normalizeRules($rules))]);
 
-    private function handleEdgeCases(array $messages): array
-    {
-        foreach ($messages as $key => $message) {
-            if ('validation.nullable' === $message) {
-                $messages[$key] = '(Nullable)';
-
+        $messages = [];
+        foreach ($rules as $rule) {
+            if ($rule instanceof ValidationRule) {
+                $messages[] = $this->formatValidationRule($rule);
                 continue;
             }
 
-            if ('validation.sometimes' === $message) {
-                $messages[$key] = '(Optional)';
-            }
+            [$ruleName, $parameters] = ValidationRuleParser::parse($rule);
+            $validator->addFailure($attribute, $ruleName, $parameters);
         }
 
-        return $messages;
+        $validatorMessages = $validator->getMessageBag()->get($attribute);
+        $messages = array_merge($messages, $validatorMessages);
+
+        return $this->processSpecialMessages($messages);
     }
 
-    private function stringify(object $rule): string
+    private function normalizeRules(array $rules): array
     {
-        if ($rule instanceof Rule && method_exists($rule, '__toString')) {
+        return array_map(function ($rule) {
+            if ($rule instanceof ValidationRule) {
+                return (string) $rule;
+            }
+            return $rule;
+        }, $rules);
+    }
+
+    private function formatValidationRule(ValidationRule $rule): string
+    {
+        if (method_exists($rule, '__toString')) {
             return (string) $rule;
         }
 
-        return '';
+        $className = class_basename($rule);
+        return sprintf("Must pass %s validation", $className);
+    }
+
+    private function processSpecialMessages(array $messages): string
+    {
+        $processed = array_map(function ($message) {
+            return match ($message) {
+                'validation.nullable' => '(Optional)',
+                'validation.sometimes' => '(Sometimes)',
+                'validation.required' => '(Required)',
+                default => $message,
+            };
+        }, $messages);
+
+        return implode(', ', array_filter($processed));
     }
 }

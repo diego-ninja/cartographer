@@ -9,6 +9,7 @@ use Ninja\Cartographer\Collections\ScriptCollection;
 use Ninja\Cartographer\Contracts\Exportable;
 use Ninja\Cartographer\Enums\EventType;
 use Ninja\Cartographer\Enums\Method;
+use Ninja\Cartographer\Enums\ParameterLocation;
 use Ninja\Cartographer\Processors\ParameterProcessor;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
@@ -21,11 +22,13 @@ final readonly class Request implements JsonSerializable, Exportable
         public Method $method,
         public string $uri,
         public string $description,
-        public ParameterProcessor $parameters,
+        public ParameterCollection $parameters,
         public Url $url,
+        public ?Body $body = null,
         public ?array $authentication,
         public ScriptCollection $scripts,
         public ?string $group = null,
+        public ?object $action = null,
     ) {}
 
     public static function from(string|array|self $data): self
@@ -44,7 +47,7 @@ final readonly class Request implements JsonSerializable, Exportable
             method: Method::from($data['method']),
             uri: $data['uri'],
             description: $data['description'] ?? '',
-            parameters: ParameterProcessor::from($data['parameters'] ?? []),
+            parameters: ParameterCollection::from($data['parameters'] ?? []),
             url: isset($data['url']) ? Url::from($data['url']) : new Url('', [], []),
             authentication: $data['authentication'] ?? null,
             scripts: isset($data['scripts']) ? ScriptCollection::from($data['scripts']) : null,
@@ -54,14 +57,19 @@ final readonly class Request implements JsonSerializable, Exportable
 
     public function forPostman(): array
     {
+        $pathParameters = $this->parameters->byLocation(ParameterLocation::Path);
+        $queryParameters = $this->parameters->byLocation(ParameterLocation::Query);
+        $headerParameters = $this->parameters->byLocation(ParameterLocation::Header);
+
         $request = [
             'name' => $this->name,
             'request' => array_filter([
                 'method' => $this->method->value,
                 'description' => $this->description,
-                'url' => $this->url->array(),
-                'auth' => $this->authentication,
-                ...$this->parameters->forPostman()
+                'url' => $this->buildPostmanUrl($pathParameters, $queryParameters),
+                'header' => $headerParameters->forPostman(),
+                'body' => $this->body?->forPostman(),
+                'auth' => $this->authentication
             ])
         ];
 
@@ -69,69 +77,78 @@ final readonly class Request implements JsonSerializable, Exportable
             $request['event'] = $this->scripts->forPostman();
         }
 
-        if ($this->authentication) {
-            $request['request']['auth'] = $this->authentication;
-        }
-
         return $request;
     }
 
     public function forInsomnia(): array
     {
-        $base = [
+        $pathParameters = $this->parameters->byLocation(ParameterLocation::Path);
+        $queryParameters = $this->parameters->byLocation(ParameterLocation::Query);
+        $headerParameters = $this->parameters->byLocation(ParameterLocation::Header);
+
+        $request = [
             '_type' => 'request',
             'name' => $this->name,
             'description' => $this->description,
             'method' => $this->method->value,
-            'url' => $this->url->forInsomnia(),
+            'url' => $this->buildInsomniaUrl($pathParameters, $queryParameters),
+            'headers' => $headerParameters->forInsomnia(),
+            'authentication' => $this->authentication
         ];
 
-        $parameters = $this->parameters->forInsomnia();
-
-        if ($this->authentication) {
-            $base['authentication'] = $this->authentication;
+        if ($this->body) {
+            $request = array_merge($request, $this->body->forInsomnia());
         }
 
         if ($this->scripts && !$this->scripts->isEmpty()) {
             if ($preRequest = $this->scripts->findByType(EventType::PreRequest)) {
-                $base['preRequestScript'] = $preRequest->forInsomnia();
+                $request['preRequestScript'] = $preRequest->forInsomnia();
             }
-            if ($afterResponse = $this->scripts->findByType(EventType::AfterResponse)) {
-                $base['afterResponseScript'] = $afterResponse->forInsomnia();
+            if ($postResponse = $this->scripts->findByType(EventType::AfterResponse)) {
+                $request['postResponseScript'] = $postResponse->forInsomnia();
             }
         }
 
-        return array_filter(array_merge($base, $parameters));
+        return array_filter($request);
     }
 
-    public function group(): string
-    {
-        if (Method::HEAD === $this->method) {
-            return '';
+    private function buildPostmanUrl(
+        ParameterCollection $pathParams,
+        ParameterCollection $queryParams
+    ): array {
+        $urlData = $this->url->array();
+
+        if (!$pathParams->isEmpty()) {
+            $urlData['variable'] = $pathParams->forPostman();
         }
 
-        return null !== $this->group ? $this->group : explode('/', mb_trim($this->uri, '/'))[0] ?? 'Default';
+        if (!$queryParams->isEmpty()) {
+            $urlData['query'] = $queryParams->forPostman();
+        }
+
+        return $urlData;
     }
 
-    public function getNestedPath(): array
-    {
-        if (null !== $this->group) {
-            return [$this->group];
+    private function buildInsomniaUrl(
+        ParameterCollection $pathParams,
+        ParameterCollection $queryParams
+    ): string {
+        $url = $this->url->forInsomnia();
+
+        if (!$queryParams->isEmpty()) {
+            $queryString = http_build_query(
+                $queryParams->reduce(
+                    fn(array $carry, $param) => array_merge(
+                        $carry,
+                        [$param->name => $param->value]
+                    ),
+                    []
+                )
+            );
+            $url .= '?' . $queryString;
         }
 
-        $segments = array_filter(explode('/', mb_trim($this->uri, '/')));
-
-        if (empty($segments)) {
-            return [];
-        }
-
-        $filteredSegments = array_filter($segments, fn($segment) => ! str_starts_with($segment, '{'));
-
-        if (empty($filteredSegments)) {
-            return [];
-        }
-
-        return array_values($filteredSegments);
+        return $url;
     }
 
     public function array(): array
@@ -142,17 +159,13 @@ final readonly class Request implements JsonSerializable, Exportable
             'method' => $this->method->value,
             'uri' => $this->uri,
             'description' => $this->description,
-            'parameters' => $this->parameters,
-            'url' => $this->url,
+            'parameters' => $this->parameters->toArray(),
+            'url' => $this->url->array(),
+            'body' => $this->body?->jsonSerialize(),
             'authentication' => $this->authentication,
             'scripts' => $this->scripts?->toArray(),
             'group' => $this->group,
         ]);
-    }
-
-    public function json(): string
-    {
-        return json_encode($this->array());
     }
 
     public function jsonSerialize(): array
@@ -160,23 +173,26 @@ final readonly class Request implements JsonSerializable, Exportable
         return $this->array();
     }
 
-    public function hasBodyContent(): bool
+    public function getPath(): string
     {
-        return in_array($this->method, [
-            Method::POST,
-            Method::PUT,
-            Method::PATCH,
-            Method::DELETE
-        ]);
+        return trim($this->uri, '/');
     }
 
-    public function requiresAuthentication(): bool
+    public function getNestedPath(): array
     {
-        return $this->authentication !== null;
-    }
+        if ($this->group !== null) {
+            return [$this->group];
+        }
 
-    public function hasScripts(): bool
-    {
-        return $this->scripts !== null && !$this->scripts->isEmpty();
-    }
-}
+        $segments = array_filter(explode('/', trim($this->uri, '/')));
+        if (empty($segments)) {
+            return [];
+        }
+
+        return array_values(
+            array_filter(
+                $segments,
+                fn($segment) => !str_starts_with($segment, '{')
+            )
+        );
+    }}

@@ -8,6 +8,7 @@ use Ninja\Cartographer\Collections\RequestCollection;
 use Ninja\Cartographer\Collections\RequestGroupCollection;
 use Ninja\Cartographer\Collections\ScriptCollection;
 use Ninja\Cartographer\Contracts\AuthenticationStrategy;
+use Ninja\Cartographer\Authentication\Strategy\AuthStrategyFactory;
 use Ninja\Cartographer\Enums\EventType;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
@@ -30,22 +31,53 @@ final readonly class RequestGroup implements JsonSerializable
         $this->children = new RequestGroupCollection();
     }
 
-    public static function create(
-        string $name,
-        string $description = '',
-        ?AuthenticationStrategy $authentication = null,
-        ?HeaderCollection $headers = null,
-        ?ScriptCollection $scripts = null,
-        ?RequestGroup $parent = null,
-    ): self {
-        return new self(
-            Uuid::uuid4(),
-            $name,
-            $description,
-            $authentication,
-            $headers,
-            $scripts,
-            $parent,
+    public static function from(string|array|self $data): self
+    {
+        if ($data instanceof self) {
+            return $data;
+        }
+
+        if (is_string($data)) {
+            $data = json_decode($data, true);
+        }
+
+        $group = new self(
+            id: isset($data['id']) ? Uuid::fromString($data['id']) : Uuid::uuid4(),
+            name: $data['name'],
+            description: $data['description'] ?? null,
+            authentication: self::resolveAuthentication($data['authentication'] ?? null),
+            headers: isset($data['headers']) ? HeaderCollection::from($data['headers']) : null,
+            scripts: isset($data['scripts']) ? ScriptCollection::from($data['scripts']) : null,
+            parent: isset($data['parent']) ? self::from($data['parent']) : null
+        );
+
+        if (isset($data['requests'])) {
+            foreach ($data['requests'] as $request) {
+                $group->addRequest(Request::from($request));
+            }
+        }
+
+        if (isset($data['children'])) {
+            foreach ($data['children'] as $child) {
+                $childGroup = self::from($child);
+                $childGroup->parent = $group;
+                $group->addChild($childGroup);
+            }
+        }
+
+        return $group;
+    }
+
+    private static function resolveAuthentication(?array $auth): ?AuthenticationStrategy
+    {
+        if (!$auth || !isset($auth['type'])) {
+            return null;
+        }
+
+        return AuthStrategyFactory::create(
+            type: $auth['type'],
+            token: $auth['token'] ?? null,
+            options: $auth['options'] ?? []
         );
     }
 
@@ -61,7 +93,7 @@ final readonly class RequestGroup implements JsonSerializable
 
     public function getDescription(): string
     {
-        return $this->description;
+        return $this->description ?? '';
     }
 
     public function getAuthentication(): ?AuthenticationStrategy
@@ -120,7 +152,7 @@ final readonly class RequestGroup implements JsonSerializable
 
     public function hasChildren(): bool
     {
-        return ! $this->children->isEmpty();
+        return !$this->children->isEmpty();
     }
 
     public function findChildByName(string $name): ?RequestGroup
@@ -143,7 +175,6 @@ final readonly class RequestGroup implements JsonSerializable
     {
         $groups = new RequestGroupCollection([$this]);
 
-        /** @var RequestGroup $child */
         foreach ($this->children as $child) {
             $groups = $groups->merge($child->flatten());
         }
@@ -174,15 +205,15 @@ final readonly class RequestGroup implements JsonSerializable
         ];
 
         if ($this->authentication) {
-            $item['auth'] = $this->authentication->toPostmanFormat();
+            $item['auth'] = $this->authentication->forPostman();
         }
 
-        if ($this->headers && ! $this->headers->isEmpty()) {
-            $item['header'] = $this->headers->formatted();
+        if ($this->headers && !$this->headers->isEmpty()) {
+            $item['header'] = $this->headers->forPostman();
         }
 
-        if ($this->scripts && ! $this->scripts->isEmpty()) {
-            $item['event'] = $this->scripts->map(fn(Script $script) => $script->forPostman());
+        if ($this->scripts && !$this->scripts->isEmpty()) {
+            $item['event'] = $this->scripts->forPostman();
         }
 
         foreach ($this->requests as $request) {
@@ -196,7 +227,7 @@ final readonly class RequestGroup implements JsonSerializable
         return $item;
     }
 
-    public function forInsomnia(string $workspaceId): array
+    public function forInsomnia(): array
     {
         $resources = [];
 
@@ -204,7 +235,7 @@ final readonly class RequestGroup implements JsonSerializable
         $resources[] = [
             '_id' => 'fld_' . $this->id->toString(),
             '_type' => 'request_group',
-            'parentId' => $this->parent?->getId()->toString() ?? $workspaceId,
+            'parentId' => $this->parent?->getId()->toString() ?? 'wrk_default',
             'name' => $this->name,
             'description' => $this->description,
             'environment' => [],
@@ -213,20 +244,27 @@ final readonly class RequestGroup implements JsonSerializable
         ];
 
         if ($this->authentication) {
-            $resources[0]['authentication'] = $this->authentication->toInsomniaFormat();
+            $resources[0]['authentication'] = $this->authentication->forInsomnia();
         }
 
-        if ($this->headers && ! $this->headers->isEmpty()) {
-            $resources[0]['headers'] = $this->headers->formatted();
+        if ($this->headers && !$this->headers->isEmpty()) {
+            $resources[0]['headers'] = $this->headers->forInsomnia();
         }
 
-        if ($this->scripts && ! $this->scripts->isEmpty()) {
-            $resources[0]['preRequestScript'] = $this->scripts->findByType(EventType::PreRequest)->forInsomnia();
-            $resources[0]['afterResponseScript'] = $this->scripts->findByType(EventType::AfterResponse)->forInsomnia();
+        if ($this->scripts && !$this->scripts->isEmpty()) {
+            if ($preRequest = $this->scripts->findByType(EventType::PreRequest)) {
+                $resources[0]['preRequestScript'] = $preRequest->content;
+            }
+            if ($postResponse = $this->scripts->findByType(EventType::AfterResponse)) {
+                $resources[0]['postResponseScript'] = $postResponse->content;
+            }
         }
 
         foreach ($this->requests as $request) {
-            $resources[] = $request->forInsomnia('fld_' . $this->id->toString());
+            $resources[] = array_merge(
+                $request->forInsomnia(),
+                ['parentId' => 'fld_' . $this->id->toString()]
+            );
         }
 
         foreach ($this->children as $child) {

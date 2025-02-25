@@ -9,7 +9,6 @@ final readonly class QueryParameter extends Parameter
         string $description,
         array $rules = [],
         bool $required = false,
-        ?string $example = null,
         mixed $value = null,
     ) {
         parent::__construct(
@@ -18,7 +17,6 @@ final readonly class QueryParameter extends Parameter
             description: $description,
             rules: $rules,
             required: $required,
-            example: $example
         );
     }
 

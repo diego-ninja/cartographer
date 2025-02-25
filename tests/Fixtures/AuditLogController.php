@@ -4,10 +4,10 @@ namespace Ninja\Cartographer\Tests\Fixtures;
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Ninja\Cartographer\Attributes\Collection;
+use Ninja\Cartographer\Attributes\Group;
 use Ninja\Cartographer\Enums\EventType;
 
-#[Collection(
+#[Group(
     name: 'Audit Log',
     description: 'This is log management collection',
     group: 'Logs',

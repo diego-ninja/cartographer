@@ -15,7 +15,7 @@ final readonly class BearerStrategy extends AbstractAuthStrategy
     }
 
 
-    public function toInsomniaFormat(): array
+    public function forInsomnia(): array
     {
         return [
             'type' => $this->getType(),
@@ -25,7 +25,7 @@ final readonly class BearerStrategy extends AbstractAuthStrategy
         ];
     }
 
-    public function toPostmanFormat(): array
+    public function forPostman(): array
     {
         return [
             'type' => $this->getType(),

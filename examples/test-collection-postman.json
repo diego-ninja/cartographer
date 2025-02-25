@@ -1,0 +1,212 @@
+{
+	"info": {
+		"_postman_id": "f41b44c6-9cfa-47f0-90fe-7021205a6d8d",
+		"name": "Test Collection",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "35390665"
+	},
+	"item": [
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Publications",
+					"item": [
+						{
+							"name": "List user publications",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "/{{base_url}}/users/{{user_id}}/publications?page=1&perPage=10&order=title&direction=asc",
+									"path": [
+										"{{base_url}}",
+										"users",
+										"{{user_id}}",
+										"publications"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "perPage",
+											"value": "10"
+										},
+										{
+											"key": "order",
+											"value": "title"
+										},
+										{
+											"key": "direction",
+											"value": "asc"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Show user publication",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "/{{base_url}}/users/{{user_id}}/publications/{{publication_id}}",
+									"path": [
+										"{{base_url}}",
+										"users",
+										"{{user_id}}",
+										"publications",
+										"{{publication_id}}"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"auth": {
+						"type": "bearer",
+						"bearer": [
+							{
+								"key": "token",
+								"value": "publications-endpoint-token",
+								"type": "string"
+							}
+						]
+					},
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"packages": {},
+								"exec": [
+									"console.log('pre-request publications');"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"packages": {},
+								"exec": [
+									"console.log('post-response publications');"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "List users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "/{{base_url}}/users",
+							"path": [
+								"{{base_url}}",
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create user",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Howard P. Lovecraft\",\n    \"email\": \"howard@miskatonic.edu\",\n    \"department\": \"History and mythology\",\n    \"password\": \"cthulhu1900\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "/{{base_url}}/users",
+							"path": [
+								"{{base_url}}",
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Show user",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "/{{base_url}}/users/{user_id}",
+							"path": [
+								"{{base_url}}",
+								"users",
+								"{user_id}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Simple GET Request",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "x-api-key",
+						"value": "foo",
+						"description": "Custom Api Key",
+						"type": "text"
+					},
+					{
+						"key": "x-device",
+						"value": "12345678909876543210",
+						"description": "Session device uuid",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "/simple",
+					"path": [
+						"simple"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Authenticated POST Request",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "test-bearer-token",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "/{{base_url}}/authenticated",
+					"path": [
+						"{{base_url}}",
+						"authenticated"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

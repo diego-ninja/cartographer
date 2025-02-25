@@ -10,7 +10,7 @@ use Ninja\Cartographer\DTO\Script;
 use Ninja\Cartographer\Enums\EventType;
 
 #[Attribute(Attribute::TARGET_CLASS)]
-final readonly class Collection
+final readonly class Group
 {
     public function __construct(
         public string $name,

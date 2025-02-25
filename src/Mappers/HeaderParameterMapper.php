@@ -34,10 +34,10 @@ final readonly class HeaderParameterMapper extends ParameterMapper
 
         if ($this->route) {
             try {
-                $method = RouteReflector::method($this->route);
-                if ($method) {
-                    $this->processCollectionHeaders();
-                    $this->processRequestHeaders($method);
+                $action = RouteReflector::action($this->route);
+                if ($action) {
+                    $this->processGroupHeaders();
+                    $this->processRequestHeaders($action);
                 }
             } catch (ReflectionException $e) {
                 // Do nothing
@@ -50,13 +50,13 @@ final readonly class HeaderParameterMapper extends ParameterMapper
     /**
      * @throws ReflectionException
      */
-    private function processCollectionHeaders(): void
+    private function processGroupHeaders(): void
     {
-        $collectionClass = RouteReflector::class($this->route);
-        $collectionAttributes = $this->attributeProcessor->getCollectionAttribute($collectionClass);
+        $controller = RouteReflector::controller($this->route);
+        $attribute = $controller ? $this->attributeProcessor->getGroupAttribute($controller) : null;
 
-        if ($collectionAttributes?->headers) {
-            foreach ($collectionAttributes->headers as $key => $header) {
+        if ($attribute?->headers) {
+            foreach ($attribute->headers as $key => $header) {
                 $this->parameters->put($key, new HeaderParameter(
                     name: $key,
                     value: $header,
